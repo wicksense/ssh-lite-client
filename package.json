@@ -1,17 +1,52 @@
 {
   "name": "ssh-lite-client",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Lightweight SSH/SFTP editor for remote Linux hosts",
+  "author": "wicksense",
+  "license": "MIT",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron ."
+    "dev": "electron .",
+    "package:win": "electron-builder --win nsis",
+    "package:dir": "electron-builder --dir",
+    "package:all": "electron-builder"
   },
   "dependencies": {
     "ssh2": "^1.15.0"
   },
   "devDependencies": {
-    "electron": "^31.7.7"
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.wicksense.sshliteclient",
+    "productName": "SSH Lite Client",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-Setup-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
