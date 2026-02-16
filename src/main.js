@@ -6,6 +6,7 @@ const { Client } = require('ssh2');
 let mainWindow;
 let sshClient = null;
 let sftp = null;
+let shellStream = null;
 let connected = false;
 let pendingHostKey = null;
 
@@ -48,6 +49,23 @@ function toEntry(item) {
     size: item.attrs.size,
     mtime: item.attrs.mtime
   };
+}
+
+function emitTerminalData(text) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('terminal:data', text);
+  }
+}
+
+function closeShellStream() {
+  if (shellStream) {
+    try {
+      shellStream.end('exit\n');
+    } catch (_err) {
+      // ignore
+    }
+    shellStream = null;
+  }
 }
 
 ipcMain.handle('ssh:connect', async (_event, cfg) => {
@@ -94,6 +112,7 @@ ipcMain.handle('ssh:connect', async (_event, cfg) => {
     sshClient.on('close', () => {
       connected = false;
       sftp = null;
+      shellStream = null;
       sshClient = null;
     });
 
@@ -143,11 +162,13 @@ ipcMain.handle('ssh:connect', async (_event, cfg) => {
 });
 
 ipcMain.handle('ssh:disconnect', async () => {
+  closeShellStream();
   if (sshClient) {
     sshClient.end();
   }
   connected = false;
   sftp = null;
+  shellStream = null;
   sshClient = null;
   return { ok: true };
 });
@@ -221,6 +242,55 @@ ipcMain.handle('ssh:pickPrivateKey', async () => {
   const filePath = response.filePaths[0];
   const keyContent = await fs.readFile(filePath, 'utf8');
   return { ok: true, filePath, keyContent };
+});
+
+ipcMain.handle('terminal:start', async () => {
+  if (!connected || !sshClient) {
+    return { ok: false, error: 'Not connected' };
+  }
+  if (shellStream) {
+    return { ok: true };
+  }
+
+  return new Promise((resolve) => {
+    sshClient.shell(
+      {
+        term: 'xterm-256color',
+        cols: 120,
+        rows: 30
+      },
+      (err, stream) => {
+        if (err) {
+          resolve({ ok: false, error: err.message });
+          return;
+        }
+
+        shellStream = stream;
+        stream.setEncoding('utf8');
+        stream.on('data', (chunk) => emitTerminalData(chunk));
+        stream.on('close', () => {
+          emitTerminalData('\n[terminal closed]\n');
+          shellStream = null;
+        });
+        stream.stderr?.on('data', (chunk) => emitTerminalData(chunk));
+
+        resolve({ ok: true });
+      }
+    );
+  });
+});
+
+ipcMain.handle('terminal:send', async (_event, data) => {
+  if (!shellStream) {
+    return { ok: false, error: 'Terminal not started' };
+  }
+  shellStream.write(data);
+  return { ok: true };
+});
+
+ipcMain.handle('terminal:stop', async () => {
+  closeShellStream();
+  return { ok: true };
 });
 
 ipcMain.handle('sftp:list', async (_event, remotePath) => {

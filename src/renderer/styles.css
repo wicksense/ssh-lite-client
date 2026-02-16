@@ -78,6 +78,10 @@ button:hover {
   filter: brightness(1.05);
 }
 
+.hidden {
+  display: none !important;
+}
+
 #disconnectBtn {
   background: #fff;
   color: var(--accent);
@@ -153,6 +157,22 @@ aside,
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.tab-btn {
+  background: #fff;
+  color: var(--accent);
+}
+
+.tab-btn.active {
+  background: var(--accent);
+  color: #fff;
 }
 
 #currentFile {
@@ -167,6 +187,40 @@ aside,
   flex: 1;
   font-family: "Consolas", "Courier New", monospace;
   line-height: 1.4;
+}
+
+.terminal-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.terminal-actions {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+#terminalOutput {
+  margin: 0;
+  background: #0c111e;
+  color: #d5e4ff;
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.terminal-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--border);
 }
 
 @media (max-width: 1150px) {

@@ -20,10 +20,19 @@ const fileList = document.getElementById('fileList');
 const editor = document.getElementById('editor');
 const saveBtn = document.getElementById('saveBtn');
 const currentFileEl = document.getElementById('currentFile');
+const editorTabBtn = document.getElementById('editorTabBtn');
+const terminalTabBtn = document.getElementById('terminalTabBtn');
+const terminalPane = document.getElementById('terminalPane');
+const startTermBtn = document.getElementById('startTermBtn');
+const stopTermBtn = document.getElementById('stopTermBtn');
+const terminalOutput = document.getElementById('terminalOutput');
+const terminalInput = document.getElementById('terminalInput');
+const sendTermBtn = document.getElementById('sendTermBtn');
 
 let currentPath = '.';
 let currentFile = '';
 let profiles = [];
+let terminalStarted = false;
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
@@ -42,6 +51,25 @@ function joinPath(base, name) {
   if (base === '.' || base === '') return name;
   if (base.endsWith('/')) return `${base}${name}`;
   return `${base}/${name}`;
+}
+
+function showEditorView() {
+  editor.classList.remove('hidden');
+  terminalPane.classList.add('hidden');
+  editorTabBtn.classList.add('active');
+  terminalTabBtn.classList.remove('active');
+}
+
+function showTerminalView() {
+  editor.classList.add('hidden');
+  terminalPane.classList.remove('hidden');
+  terminalTabBtn.classList.add('active');
+  editorTabBtn.classList.remove('active');
+}
+
+function appendTerminalOutput(text) {
+  terminalOutput.textContent += text;
+  terminalOutput.scrollTop = terminalOutput.scrollHeight;
 }
 
 async function loadDir(path) {
@@ -185,12 +213,17 @@ connectBtn.onclick = async () => {
 };
 
 disconnectBtn.onclick = async () => {
+  if (terminalStarted) {
+    await window.api.stopTerminal();
+    terminalStarted = false;
+  }
   await window.api.disconnect();
   setStatus('Disconnected');
   fileList.innerHTML = '';
   editor.value = '';
   currentFile = '';
   currentFileEl.textContent = 'No file open';
+  terminalOutput.textContent = '';
 };
 
 loadBtn.onclick = async () => {
@@ -273,4 +306,64 @@ deleteProfileBtn.onclick = async () => {
   setStatus(`Deleted profile ${target}`);
 };
 
+editorTabBtn.onclick = () => showEditorView();
+terminalTabBtn.onclick = () => showTerminalView();
+
+startTermBtn.onclick = async () => {
+  const res = await window.api.startTerminal();
+  if (!res.ok) {
+    setStatus(res.error || 'Failed to start terminal', true);
+    return;
+  }
+  terminalStarted = true;
+  setStatus('Terminal started');
+  showTerminalView();
+};
+
+stopTermBtn.onclick = async () => {
+  const res = await window.api.stopTerminal();
+  if (!res.ok) {
+    setStatus(res.error || 'Failed to stop terminal', true);
+    return;
+  }
+  terminalStarted = false;
+  setStatus('Terminal stopped');
+};
+
+async function sendTerminalInput() {
+  if (!terminalInput.value.trim()) return;
+  if (!terminalStarted) {
+    const startRes = await window.api.startTerminal();
+    if (!startRes.ok) {
+      setStatus(startRes.error || 'Failed to start terminal', true);
+      return;
+    }
+    terminalStarted = true;
+  }
+
+  const cmd = `${terminalInput.value}\n`;
+  const res = await window.api.sendTerminal(cmd);
+  if (!res.ok) {
+    setStatus(res.error || 'Failed sending command', true);
+    return;
+  }
+  terminalInput.value = '';
+}
+
+sendTermBtn.onclick = () => {
+  void sendTerminalInput();
+};
+
+terminalInput.onkeydown = (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    void sendTerminalInput();
+  }
+};
+
+window.api.onTerminalData((text) => {
+  appendTerminalOutput(text);
+});
+
+showEditorView();
 void refreshProfiles();

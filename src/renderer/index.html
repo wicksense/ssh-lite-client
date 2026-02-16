@@ -42,10 +42,25 @@
 
       <section class="editor-wrap">
         <div class="editor-top">
+          <div class="view-tabs">
+            <button id="editorTabBtn" class="tab-btn active">Editor</button>
+            <button id="terminalTabBtn" class="tab-btn">Terminal</button>
+          </div>
           <span id="currentFile">No file open</span>
           <button id="saveBtn">Save</button>
         </div>
         <textarea id="editor" spellcheck="false"></textarea>
+        <section id="terminalPane" class="terminal-pane hidden">
+          <div class="terminal-actions">
+            <button id="startTermBtn">Start Shell</button>
+            <button id="stopTermBtn">Stop Shell</button>
+          </div>
+          <pre id="terminalOutput"></pre>
+          <div class="terminal-input-row">
+            <input id="terminalInput" placeholder="Type command and press Enter" />
+            <button id="sendTermBtn">Send</button>
+          </div>
+        </section>
       </section>
     </main>
 
