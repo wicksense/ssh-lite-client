@@ -21,6 +21,7 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
+    "publish": [],
     "appId": "com.wicksense.sshliteclient",
     "productName": "SSH Lite Client",
     "directories": {
