@@ -13,22 +13,32 @@
     </header>
 
     <section class="conn">
-      <select id="profileSelect"></select>
-      <button id="loadProfileBtn">Load Profile</button>
-      <button id="saveProfileBtn">Save Profile</button>
-      <button id="deleteProfileBtn">Delete Profile</button>
-      <input id="profileName" placeholder="Profile name" />
-      <input id="host" placeholder="Host (e.g. 192.168.1.20)" />
-      <input id="port" placeholder="Port" value="22" />
-      <input id="username" placeholder="Username" />
-      <input id="password" type="password" placeholder="Password (or use private key below)" />
-      <textarea id="privateKey" placeholder="Private key (optional)"></textarea>
-      <button id="pickKeyBtn">Load Key File</button>
-      <input id="passphrase" type="password" placeholder="Key passphrase (optional)" />
-      <input id="startPath" placeholder="Start path (e.g. /etc)" value="." />
-      <button id="connectBtn">Connect</button>
-      <button id="disconnectBtn">Disconnect</button>
-      <span id="status">Disconnected</span>
+      <div class="conn-row">
+        <select id="profileSelect"></select>
+        <button id="loadProfileBtn">Load Profile</button>
+        <button id="saveProfileBtn">Save Profile</button>
+        <button id="deleteProfileBtn">Delete Profile</button>
+        <input id="profileName" placeholder="Profile name" />
+      </div>
+
+      <div class="conn-row">
+        <input id="host" placeholder="Host (e.g. 192.168.1.20)" />
+        <input id="port" placeholder="Port" value="22" />
+        <input id="username" placeholder="Username" />
+        <input id="password" type="password" placeholder="Password (or use private key below)" />
+        <button id="pickKeyBtn">Load Key File</button>
+        <input id="passphrase" type="password" placeholder="Key passphrase (optional)" />
+        <input id="startPath" placeholder="Start path (e.g. /etc)" value="." />
+      </div>
+
+      <div class="conn-row conn-row-key">
+        <textarea id="privateKey" placeholder="Private key (optional)"></textarea>
+        <div class="conn-actions">
+          <button id="connectBtn">Connect</button>
+          <button id="disconnectBtn">Disconnect</button>
+          <span id="status">Disconnected</span>
+        </div>
+      </div>
     </section>
 
     <main>

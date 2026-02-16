@@ -41,10 +41,36 @@ header p {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conn-row {
   display: grid;
-  grid-template-columns: 1fr auto auto auto 1fr 1fr 1fr 1fr 2fr auto 1fr 1fr auto auto auto;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 8px;
   align-items: center;
+}
+
+.conn-row > * {
+  min-width: 0;
+}
+
+.conn-row-key {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.conn-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.conn button {
+  justify-self: start;
+  width: auto;
 }
 
 .conn input,
@@ -60,8 +86,8 @@ header p {
 
 .conn textarea {
   resize: vertical;
-  min-height: 36px;
-  max-height: 90px;
+  min-height: 42px;
+  max-height: 110px;
 }
 
 button {
@@ -88,12 +114,17 @@ button:hover {
 }
 
 #profileSelect {
-  min-width: 180px;
+  min-width: 0;
+}
+
+#privateKey {
+  width: 100%;
 }
 
 #status {
   color: var(--muted);
   font-size: 13px;
+  white-space: nowrap;
 }
 
 main {
@@ -144,11 +175,11 @@ aside,
 }
 
 #fileList li.dir::before {
-  content: "[DIR] ";
+  content: "📁 ";
 }
 
 #fileList li.file::before {
-  content: "[FILE] ";
+  content: "📄 ";
 }
 
 .editor-top {
@@ -224,8 +255,13 @@ aside,
 }
 
 @media (max-width: 1150px) {
-  .conn {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .conn-row-key {
+    grid-template-columns: 1fr;
+  }
+
+  .conn-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   main {
