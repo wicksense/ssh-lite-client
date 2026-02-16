@@ -8,12 +8,15 @@
   </head>
   <body>
     <header>
-      <h1>SSH Lite Client</h1>
-      <p>Fast remote config + script editing</p>
+      <div>
+        <h1>SSH Lite Client</h1>
+        <p>Fast remote config + script editing</p>
+      </div>
+      <button id="settingsBtn" class="ghost-btn">Settings</button>
     </header>
 
     <section class="conn">
-      <div class="conn-row">
+      <div class="conn-row conn-row-profile">
         <select id="profileSelect"></select>
         <button id="loadProfileBtn">Load Profile</button>
         <button id="saveProfileBtn">Save Profile</button>
@@ -21,7 +24,7 @@
         <input id="profileName" placeholder="Profile name" />
       </div>
 
-      <div class="conn-row">
+      <div class="conn-row conn-row-credentials">
         <input id="host" placeholder="Host (e.g. 192.168.1.20)" />
         <input id="port" placeholder="Port" value="22" />
         <input id="username" placeholder="Username" />
@@ -73,6 +76,23 @@
         </section>
       </section>
     </main>
+
+    <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="settingsTitle">Settings</h2>
+          <button id="closeSettingsBtn" class="ghost-btn">Close</button>
+        </div>
+        <div class="modal-body">
+          <label for="themeSelect">Theme</label>
+          <select id="themeSelect">
+            <option value="dark">Dark (default)</option>
+            <option value="light">Light</option>
+          </select>
+          <p class="settings-note">Theme is saved on this machine.</p>
+        </div>
+      </div>
+    </div>
 
     <script src="renderer.js"></script>
   </body>

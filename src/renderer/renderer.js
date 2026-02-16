@@ -28,11 +28,35 @@ const stopTermBtn = document.getElementById('stopTermBtn');
 const terminalOutput = document.getElementById('terminalOutput');
 const terminalInput = document.getElementById('terminalInput');
 const sendTermBtn = document.getElementById('sendTermBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const themeSelect = document.getElementById('themeSelect');
 
 let currentPath = '.';
 let currentFile = '';
 let profiles = [];
 let terminalStarted = false;
+
+function applyTheme(theme) {
+  const safeTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', safeTheme);
+  themeSelect.value = safeTheme;
+  localStorage.setItem('ssh-lite-theme', safeTheme);
+}
+
+function loadThemePreference() {
+  const savedTheme = localStorage.getItem('ssh-lite-theme') || 'dark';
+  applyTheme(savedTheme);
+}
+
+function openSettings() {
+  settingsModal.classList.remove('hidden');
+}
+
+function closeSettings() {
+  settingsModal.classList.add('hidden');
+}
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
@@ -361,9 +385,29 @@ terminalInput.onkeydown = (event) => {
   }
 };
 
+settingsBtn.onclick = () => openSettings();
+closeSettingsBtn.onclick = () => closeSettings();
+
+settingsModal.onclick = (event) => {
+  if (event.target === settingsModal) {
+    closeSettings();
+  }
+};
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closeSettings();
+  }
+});
+
+themeSelect.onchange = () => {
+  applyTheme(themeSelect.value);
+};
+
 window.api.onTerminalData((text) => {
   appendTerminalOutput(text);
 });
 
+loadThemePreference();
 showEditorView();
 void refreshProfiles();
