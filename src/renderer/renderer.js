@@ -3,7 +3,14 @@ const portEl = document.getElementById('port');
 const userEl = document.getElementById('username');
 const passEl = document.getElementById('password');
 const keyEl = document.getElementById('privateKey');
+const pickKeyBtn = document.getElementById('pickKeyBtn');
 const passphraseEl = document.getElementById('passphrase');
+const startPathEl = document.getElementById('startPath');
+const profileSelectEl = document.getElementById('profileSelect');
+const profileNameEl = document.getElementById('profileName');
+const loadProfileBtn = document.getElementById('loadProfileBtn');
+const saveProfileBtn = document.getElementById('saveProfileBtn');
+const deleteProfileBtn = document.getElementById('deleteProfileBtn');
 const connectBtn = document.getElementById('connectBtn');
 const disconnectBtn = document.getElementById('disconnectBtn');
 const statusEl = document.getElementById('status');
@@ -16,6 +23,7 @@ const currentFileEl = document.getElementById('currentFile');
 
 let currentPath = '.';
 let currentFile = '';
+let profiles = [];
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
@@ -85,16 +93,87 @@ async function loadDir(path) {
   setStatus(`Loaded ${path}`);
 }
 
-connectBtn.onclick = async () => {
-  setStatus('Connecting...');
-  const res = await window.api.connect({
+function applyProfile(profile) {
+  if (!profile) return;
+  profileNameEl.value = profile.name || '';
+  hostEl.value = profile.host || '';
+  portEl.value = String(profile.port || 22);
+  userEl.value = profile.username || '';
+  startPathEl.value = profile.startPath || '.';
+}
+
+async function refreshProfiles() {
+  const res = await window.api.listProfiles();
+  if (!res.ok) {
+    setStatus(res.error || 'Failed loading profiles', true);
+    return;
+  }
+  profiles = res.profiles || [];
+  profileSelectEl.innerHTML = '';
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Select profile';
+  profileSelectEl.appendChild(placeholder);
+
+  for (const profile of profiles) {
+    const opt = document.createElement('option');
+    opt.value = profile.name;
+    opt.textContent = `${profile.name} (${profile.username}@${profile.host}:${profile.port})`;
+    profileSelectEl.appendChild(opt);
+  }
+}
+
+async function connectWithHostTrustRetry() {
+  const connectPayload = {
     host: hostEl.value.trim(),
     port: portEl.value.trim(),
     username: userEl.value.trim(),
     password: passEl.value,
     privateKey: keyEl.value,
     passphrase: passphraseEl.value
-  });
+  };
+
+  let res = await window.api.connect(connectPayload);
+  if (res.ok) {
+    return res;
+  }
+
+  if (res.code !== 'HOST_UNTRUSTED') {
+    return res;
+  }
+
+  let hostKey = res.hostKey;
+  if (!hostKey) {
+    const pendingRes = await window.api.getPendingHostKey();
+    hostKey = pendingRes.hostKey;
+  }
+
+  if (!hostKey) {
+    return { ok: false, error: 'Host key not trusted and no fingerprint found' };
+  }
+
+  const shouldTrust = window.confirm(
+    `Unknown host key for ${hostKey.host}:${hostKey.port}\n` +
+      `Fingerprint: ${hostKey.fingerprint}\n\n` +
+      'Trust this host and continue?'
+  );
+  if (!shouldTrust) {
+    return { ok: false, error: 'Connection canceled: host key not trusted' };
+  }
+
+  const trustRes = await window.api.trustHostKey(hostKey);
+  if (!trustRes.ok) {
+    return { ok: false, error: trustRes.error || 'Failed to trust host key' };
+  }
+
+  res = await window.api.connect({ ...connectPayload, trustOnFirstUse: true });
+  return res;
+}
+
+connectBtn.onclick = async () => {
+  setStatus('Connecting...');
+  const res = await connectWithHostTrustRetry();
 
   if (!res.ok) {
     setStatus(res.error || 'Connection failed', true);
@@ -102,7 +181,7 @@ connectBtn.onclick = async () => {
   }
 
   setStatus('Connected');
-  await loadDir(pathInput.value.trim() || '.');
+  await loadDir(startPathEl.value.trim() || pathInput.value.trim() || '.');
 };
 
 disconnectBtn.onclick = async () => {
@@ -132,3 +211,66 @@ saveBtn.onclick = async () => {
 
   setStatus(`Saved ${currentFile}`);
 };
+
+pickKeyBtn.onclick = async () => {
+  const res = await window.api.pickPrivateKey();
+  if (!res.ok) {
+    if (!res.canceled) {
+      setStatus(res.error || 'Failed to load key file', true);
+    }
+    return;
+  }
+
+  keyEl.value = res.keyContent || '';
+  setStatus(`Loaded key from ${res.filePath}`);
+};
+
+loadProfileBtn.onclick = async () => {
+  const selectedName = profileSelectEl.value;
+  const profile = profiles.find((p) => p.name === selectedName);
+  if (!profile) {
+    setStatus('Select a profile first', true);
+    return;
+  }
+  applyProfile(profile);
+  setStatus(`Loaded profile ${selectedName}`);
+};
+
+saveProfileBtn.onclick = async () => {
+  const payload = {
+    name: profileNameEl.value.trim(),
+    host: hostEl.value.trim(),
+    port: Number(portEl.value.trim() || 22),
+    username: userEl.value.trim(),
+    startPath: startPathEl.value.trim() || '.'
+  };
+  const res = await window.api.saveProfile(payload);
+  if (!res.ok) {
+    setStatus(res.error || 'Failed to save profile', true);
+    return;
+  }
+  await refreshProfiles();
+  profileSelectEl.value = payload.name;
+  setStatus(`Saved profile ${payload.name}`);
+};
+
+deleteProfileBtn.onclick = async () => {
+  const target = profileSelectEl.value || profileNameEl.value.trim();
+  if (!target) {
+    setStatus('Choose a profile to delete', true);
+    return;
+  }
+  const confirmed = window.confirm(`Delete profile "${target}"?`);
+  if (!confirmed) {
+    return;
+  }
+  const res = await window.api.deleteProfile(target);
+  if (!res.ok) {
+    setStatus(res.error || 'Failed to delete profile', true);
+    return;
+  }
+  await refreshProfiles();
+  setStatus(`Deleted profile ${target}`);
+};
+
+void refreshProfiles();

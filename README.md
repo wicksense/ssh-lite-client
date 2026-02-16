@@ -5,9 +5,12 @@ Windows-first desktop app for quickly editing config files and scripts over SSH/
 ## Current MVP features
 
 - SSH connect with password or pasted private key
+- Private-key file picker
 - Remote directory browsing
 - Open remote files
 - Edit and save remote files
+- Saved connection profiles (name/host/port/user/start path)
+- Host key trust flow with saved fingerprints
 - Lightweight single-window UI
 
 ## Run
@@ -20,5 +23,5 @@ npm run dev
 ## Notes
 
 - This first version is intentionally minimal and optimized for speed.
-- SSH host key trust + known hosts UX is not implemented yet.
-- Next steps: persistent profiles, terminal pane, key-file loading, and safer privileged writes.
+- Profiles and trusted host fingerprints are stored in Electron app data.
+- Next steps: terminal pane, key-agent support, and safer privileged writes.
