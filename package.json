@@ -9,7 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "package:win": "electron-builder --win nsis --publish never",
+    "package:win": "electron-builder --win nsis --publish=never",
     "package:dir": "electron-builder --dir",
     "package:all": "electron-builder"
   },
