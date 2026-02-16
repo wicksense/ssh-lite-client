@@ -1,0 +1,17 @@
+{
+  "name": "ssh-lite-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lightweight SSH/SFTP editor for remote Linux hosts",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron ."
+  },
+  "dependencies": {
+    "ssh2": "^1.15.0"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7"
+  }
+}

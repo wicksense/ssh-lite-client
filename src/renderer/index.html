@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSH Lite Client</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>SSH Lite Client</h1>
+      <p>Fast remote config + script editing</p>
+    </header>
+
+    <section class="conn">
+      <input id="host" placeholder="Host (e.g. 192.168.1.20)" />
+      <input id="port" placeholder="Port" value="22" />
+      <input id="username" placeholder="Username" />
+      <input id="password" type="password" placeholder="Password (or use private key below)" />
+      <textarea id="privateKey" placeholder="Private key (optional)"></textarea>
+      <input id="passphrase" type="password" placeholder="Key passphrase (optional)" />
+      <button id="connectBtn">Connect</button>
+      <button id="disconnectBtn">Disconnect</button>
+      <span id="status">Disconnected</span>
+    </section>
+
+    <main>
+      <aside>
+        <div class="path-row">
+          <input id="pathInput" value="." />
+          <button id="loadBtn">Load</button>
+        </div>
+        <ul id="fileList"></ul>
+      </aside>
+
+      <section class="editor-wrap">
+        <div class="editor-top">
+          <span id="currentFile">No file open</span>
+          <button id="saveBtn">Save</button>
+        </div>
+        <textarea id="editor" spellcheck="false"></textarea>
+      </section>
+    </main>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

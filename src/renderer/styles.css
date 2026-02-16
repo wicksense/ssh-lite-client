@@ -1,0 +1,184 @@
+:root {
+  --bg: #f5f7fb;
+  --panel: #ffffff;
+  --border: #d9dfeb;
+  --accent: #0b5fff;
+  --text: #1a2030;
+  --muted: #667085;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(circle at top left, #f0f4ff 0%, var(--bg) 48%, #eef8f6 100%);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  padding: 14px 20px 8px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.conn {
+  margin: 0 20px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: 2fr 80px 1fr 1fr 2fr 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.conn input,
+.conn textarea,
+.path-row input,
+#editor {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  font: inherit;
+}
+
+.conn textarea {
+  resize: vertical;
+  min-height: 36px;
+  max-height: 90px;
+}
+
+button {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(1.05);
+}
+
+#disconnectBtn {
+  background: #fff;
+  color: var(--accent);
+}
+
+#status {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+main {
+  margin: 12px 20px 20px;
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+}
+
+aside,
+.editor-wrap {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.path-row {
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+#fileList {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+}
+
+#fileList li {
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+#fileList li:hover {
+  background: #edf3ff;
+}
+
+#fileList li.dir::before {
+  content: "[DIR] ";
+}
+
+#fileList li.file::before {
+  content: "[FILE] ";
+}
+
+.editor-top {
+  border-bottom: 1px solid var(--border);
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#currentFile {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+#editor {
+  border: 0;
+  border-radius: 0 0 12px 12px;
+  resize: none;
+  flex: 1;
+  font-family: "Consolas", "Courier New", monospace;
+  line-height: 1.4;
+}
+
+@media (max-width: 1150px) {
+  .conn {
+    grid-template-columns: 1fr 80px 1fr 1fr;
+  }
+
+  .conn textarea,
+  .conn #passphrase,
+  .conn #connectBtn,
+  .conn #disconnectBtn,
+  .conn #status {
+    grid-column: span 2;
+  }
+
+  main {
+    grid-template-columns: 1fr;
+    grid-template-rows: 280px 1fr;
+  }
+}
