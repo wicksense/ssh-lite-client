@@ -2,6 +2,19 @@
 
 Windows-first desktop app for quickly editing config files and scripts over SSH/SFTP.
 
+## Motivation
+
+This project exists to make remote Linux edits fast and low-friction for day-to-day tasks like updating Raspberry Pi configs or small scripts.
+
+The goal is to avoid the heavy startup and workflow overhead of full IDE remote tooling while still keeping the core capabilities in one place:
+
+- quick SSH connection
+- fast remote file browse/open/save
+- lightweight built-in editor
+- basic terminal access when needed
+
+In short: optimize for speed and simplicity, not full IDE complexity.
+
 ## Current MVP features
 
 - SSH connect with password or pasted private key
