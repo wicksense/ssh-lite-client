@@ -9,7 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "package:win": "electron-builder --win nsis",
+    "package:win": "electron-builder --win nsis --publish never",
     "package:dir": "electron-builder --dir",
     "package:all": "electron-builder"
   },
@@ -32,7 +32,10 @@
       "package.json"
     ],
     "asar": true,
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
     "win": {
+      "signAndEditExecutable": false,
       "target": [
         {
           "target": "nsis",
