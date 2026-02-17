@@ -19,6 +19,7 @@ const loadBtn = document.getElementById('loadBtn');
 const fileList = document.getElementById('fileList');
 const editor = document.getElementById('editor');
 const saveBtn = document.getElementById('saveBtn');
+const closeFileBtn = document.getElementById('closeFileBtn');
 const currentFileEl = document.getElementById('currentFile');
 const editorTabBtn = document.getElementById('editorTabBtn');
 const terminalTabBtn = document.getElementById('terminalTabBtn');
@@ -32,6 +33,8 @@ const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const themeSelect = document.getElementById('themeSelect');
+const workspaceMain = document.getElementById('workspaceMain');
+const sidebarResizeHandle = document.getElementById('sidebarResizeHandle');
 
 let currentPath = '.';
 let currentFile = '';
@@ -56,6 +59,50 @@ function openSettings() {
 
 function closeSettings() {
   settingsModal.classList.add('hidden');
+}
+
+function closeCurrentFile() {
+  currentFile = '';
+  currentFileEl.textContent = 'No file open';
+  editor.value = '';
+  setStatus('Closed file');
+}
+
+function setSidebarWidth(px) {
+  const min = 220;
+  const max = Math.max(320, window.innerWidth * 0.55);
+  const width = Math.min(max, Math.max(min, px));
+  workspaceMain.style.gridTemplateColumns = `${width}px 8px minmax(0, 1fr)`;
+  localStorage.setItem('ssh-lite-sidebar-width', String(Math.round(width)));
+}
+
+function loadSidebarWidthPreference() {
+  const saved = Number(localStorage.getItem('ssh-lite-sidebar-width'));
+  if (!Number.isFinite(saved) || saved <= 0) {
+    return;
+  }
+  setSidebarWidth(saved);
+}
+
+function setupSidebarResize() {
+  let dragging = false;
+
+  sidebarResizeHandle.addEventListener('mousedown', () => {
+    dragging = true;
+    document.body.classList.add('resizing');
+  });
+
+  window.addEventListener('mousemove', (event) => {
+    if (!dragging) return;
+    const rect = workspaceMain.getBoundingClientRect();
+    setSidebarWidth(event.clientX - rect.left);
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.classList.remove('resizing');
+  });
 }
 
 function setStatus(message, isError = false) {
@@ -244,9 +291,7 @@ disconnectBtn.onclick = async () => {
   await window.api.disconnect();
   setStatus('Disconnected');
   fileList.innerHTML = '';
-  editor.value = '';
-  currentFile = '';
-  currentFileEl.textContent = 'No file open';
+  closeCurrentFile();
   terminalOutput.textContent = '';
 };
 
@@ -267,6 +312,14 @@ saveBtn.onclick = async () => {
   }
 
   setStatus(`Saved ${currentFile}`);
+};
+
+closeFileBtn.onclick = () => {
+  if (!currentFile) {
+    setStatus('No file open', true);
+    return;
+  }
+  closeCurrentFile();
 };
 
 pickKeyBtn.onclick = async () => {
@@ -409,5 +462,7 @@ window.api.onTerminalData((text) => {
 });
 
 loadThemePreference();
+loadSidebarWidthPreference();
+setupSidebarResize();
 showEditorView();
 void refreshProfiles();

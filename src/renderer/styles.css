@@ -102,7 +102,7 @@ header p {
 #themeSelect {
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px;
+  padding: 7px 8px;
   font: inherit;
   background: var(--panel-2);
   color: var(--text);
@@ -120,7 +120,8 @@ button {
   background: var(--accent);
   color: var(--accent-contrast);
   border-radius: 8px;
-  padding: 8px 11px;
+  padding: 6px 10px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -150,8 +151,8 @@ button:hover {
 main {
   margin: 12px 20px 20px;
   display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 12px;
+  grid-template-columns: 320px 8px minmax(0, 1fr);
+  gap: 0;
   min-height: 0;
   flex: 1;
 }
@@ -164,6 +165,33 @@ aside,
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+aside {
+  margin-right: 6px;
+}
+
+.editor-wrap {
+  margin-left: 6px;
+}
+
+.resize-handle {
+  width: 8px;
+  cursor: col-resize;
+  border-radius: 999px;
+  align-self: stretch;
+  background: transparent;
+}
+
+.resize-handle:hover,
+body.resizing .resize-handle {
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+body.resizing {
+  user-select: none;
+  cursor: col-resize;
 }
 
 .path-row {
@@ -209,6 +237,12 @@ aside,
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+}
+
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .view-tabs {
@@ -311,7 +345,17 @@ aside,
   font-size: 13px;
 }
 
-@media (max-width: 1400px) {
+@media (max-width: 1500px) {
+  .conn-row-profile {
+    grid-template-columns: minmax(220px, 1.8fr) auto auto auto minmax(180px, 1.2fr);
+  }
+
+  .conn-row-credentials {
+    grid-template-columns: minmax(200px, 1.6fr) 80px minmax(140px, 1fr) minmax(220px, 1.6fr) auto minmax(180px, 1.3fr) minmax(150px, 1fr);
+  }
+}
+
+@media (max-width: 1200px) {
   .conn-row-profile,
   .conn-row-credentials,
   .conn-row-key {
@@ -324,9 +368,29 @@ aside,
   }
 }
 
-@media (max-width: 1150px) {
+@media (max-width: 960px) {
+  .conn-row-profile,
+  .conn-row-credentials,
+  .conn-row-key {
+    grid-template-columns: 1fr;
+  }
+
   main {
     grid-template-columns: 1fr;
-    grid-template-rows: 280px 1fr;
+    grid-template-rows: 260px 1fr;
+    gap: 10px;
+  }
+
+  .resize-handle {
+    display: none;
+  }
+
+  aside,
+  .editor-wrap {
+    margin: 0;
+  }
+
+  .editor-top {
+    flex-wrap: wrap;
   }
 }

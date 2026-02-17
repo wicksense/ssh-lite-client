@@ -31,7 +31,7 @@
         <input id="password" type="password" placeholder="Password (or use private key below)" />
         <button id="pickKeyBtn">Load Key File</button>
         <input id="passphrase" type="password" placeholder="Key passphrase (optional)" />
-        <input id="startPath" placeholder="Start path (e.g. /etc)" value="." />
+        <input id="startPath" placeholder="Start path (optional, defaults to .)" />
       </div>
 
       <div class="conn-row conn-row-key">
@@ -44,7 +44,7 @@
       </div>
     </section>
 
-    <main>
+    <main id="workspaceMain">
       <aside>
         <div class="path-row">
           <input id="pathInput" value="." />
@@ -53,6 +53,8 @@
         <ul id="fileList"></ul>
       </aside>
 
+      <div id="sidebarResizeHandle" class="resize-handle" title="Drag to resize file explorer"></div>
+
       <section class="editor-wrap">
         <div class="editor-top">
           <div class="view-tabs">
@@ -60,7 +62,10 @@
             <button id="terminalTabBtn" class="tab-btn">Terminal</button>
           </div>
           <span id="currentFile">No file open</span>
-          <button id="saveBtn">Save</button>
+          <div class="editor-actions">
+            <button id="closeFileBtn" class="ghost-btn">Close</button>
+            <button id="saveBtn">Save</button>
+          </div>
         </div>
         <textarea id="editor" spellcheck="false"></textarea>
         <section id="terminalPane" class="terminal-pane hidden">
