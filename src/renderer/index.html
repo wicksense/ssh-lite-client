@@ -8,30 +8,43 @@
   </head>
   <body>
     <header>
-      <h1>SSH Lite Client</h1>
-      <p>Fast remote config + script editing</p>
+      <div>
+        <h1>SSH Lite Client</h1>
+        <p>Fast remote config + script editing</p>
+      </div>
+      <button id="settingsBtn" class="ghost-btn">Settings</button>
     </header>
 
     <section class="conn">
-      <select id="profileSelect"></select>
-      <button id="loadProfileBtn">Load Profile</button>
-      <button id="saveProfileBtn">Save Profile</button>
-      <button id="deleteProfileBtn">Delete Profile</button>
-      <input id="profileName" placeholder="Profile name" />
-      <input id="host" placeholder="Host (e.g. 192.168.1.20)" />
-      <input id="port" placeholder="Port" value="22" />
-      <input id="username" placeholder="Username" />
-      <input id="password" type="password" placeholder="Password (or use private key below)" />
-      <textarea id="privateKey" placeholder="Private key (optional)"></textarea>
-      <button id="pickKeyBtn">Load Key File</button>
-      <input id="passphrase" type="password" placeholder="Key passphrase (optional)" />
-      <input id="startPath" placeholder="Start path (e.g. /etc)" value="." />
-      <button id="connectBtn">Connect</button>
-      <button id="disconnectBtn">Disconnect</button>
-      <span id="status">Disconnected</span>
+      <div class="conn-row conn-row-profile">
+        <select id="profileSelect"></select>
+        <button id="loadProfileBtn">Load Profile</button>
+        <button id="saveProfileBtn">Save Profile</button>
+        <button id="deleteProfileBtn">Delete Profile</button>
+        <input id="profileName" placeholder="Profile name" />
+      </div>
+
+      <div class="conn-row conn-row-credentials">
+        <input id="host" placeholder="Host (e.g. 192.168.1.20)" />
+        <input id="port" placeholder="Port" value="22" />
+        <input id="username" placeholder="Username" />
+        <input id="password" type="password" placeholder="Password (or use private key below)" />
+        <button id="pickKeyBtn">Load Key File</button>
+        <input id="passphrase" type="password" placeholder="Key passphrase (optional)" />
+        <input id="startPath" placeholder="Start path (optional, defaults to .)" />
+      </div>
+
+      <div class="conn-row conn-row-key">
+        <textarea id="privateKey" placeholder="Private key (optional)"></textarea>
+        <div class="conn-actions">
+          <button id="connectBtn">Connect</button>
+          <button id="disconnectBtn">Disconnect</button>
+          <span id="status">Disconnected</span>
+        </div>
+      </div>
     </section>
 
-    <main>
+    <main id="workspaceMain">
       <aside>
         <div class="path-row">
           <input id="pathInput" value="." />
@@ -40,6 +53,8 @@
         <ul id="fileList"></ul>
       </aside>
 
+      <div id="sidebarResizeHandle" class="resize-handle" title="Drag to resize file explorer"></div>
+
       <section class="editor-wrap">
         <div class="editor-top">
           <div class="view-tabs">
@@ -47,7 +62,10 @@
             <button id="terminalTabBtn" class="tab-btn">Terminal</button>
           </div>
           <span id="currentFile">No file open</span>
-          <button id="saveBtn">Save</button>
+          <div class="editor-actions">
+            <button id="closeFileBtn" class="ghost-btn">Close</button>
+            <button id="saveBtn">Save</button>
+          </div>
         </div>
         <textarea id="editor" spellcheck="false"></textarea>
         <section id="terminalPane" class="terminal-pane hidden">
@@ -63,6 +81,23 @@
         </section>
       </section>
     </main>
+
+    <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="settingsTitle">Settings</h2>
+          <button id="closeSettingsBtn" class="ghost-btn">Close</button>
+        </div>
+        <div class="modal-body">
+          <label for="themeSelect">Theme</label>
+          <select id="themeSelect">
+            <option value="dark">Dark (default)</option>
+            <option value="light">Light</option>
+          </select>
+          <p class="settings-note">Theme is saved on this machine.</p>
+        </div>
+      </div>
+    </div>
 
     <script src="renderer.js"></script>
   </body>

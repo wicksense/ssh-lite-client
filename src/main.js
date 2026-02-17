@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
 const { Client } = require('ssh2');
@@ -27,6 +27,54 @@ async function writeJsonFile(filePath, value) {
   await fs.writeFile(filePath, JSON.stringify(value, null, 2), 'utf8');
 }
 
+function setupApplicationMenu() {
+  const template = [
+    {
+      label: 'File',
+      submenu: [{ role: 'quit' }]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [{ role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }]
+    },
+    {
+      label: 'Window',
+      submenu: [{ role: 'minimize' }, { role: 'close' }]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'About SSH Lite Client',
+          click: async () => {
+            await dialog.showMessageBox({
+              type: 'info',
+              title: 'About SSH Lite Client',
+              message: `SSH Lite Client v${app.getVersion()}`,
+              detail: 'Lightweight SSH + SFTP editor for fast remote Linux maintenance.\n\nBuilt for quick config and script edits without full IDE overhead.'
+            });
+          }
+        }
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -38,6 +86,7 @@ function createWindow() {
     }
   });
 
+  setupApplicationMenu();
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
 
@@ -51,9 +100,27 @@ function toEntry(item) {
   };
 }
 
+function sanitizeTerminalText(text) {
+  if (!text) return '';
+
+  return text
+    // OSC sequences
+    .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, '')
+    // ANSI CSI sequences (real ESC)
+    .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, '')
+    // Caret-notation escapes that can appear in plain rendering, e.g. ^[[?2004h
+    .replace(/\^\[\[[0-?]*[ -/]*[@-~]/g, '')
+    // Bracketed-paste residue sometimes printed as plain text
+    .replace(/\[\?2004[hl]/g, '')
+    .replace(/\?2004[hl]/g, '')
+    .replace(/\b2004[hl]\b/g, '')
+    // remaining non-printable control chars
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+}
+
 function emitTerminalData(text) {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('terminal:data', text);
+    mainWindow.webContents.send('terminal:data', sanitizeTerminalText(text));
   }
 }
 
