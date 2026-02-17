@@ -19,7 +19,7 @@ In short: optimize for speed and simplicity, not full IDE complexity.
 
 ## Screenshot
 
-Drop a clean screenshot at `docs/images/app-main-dark.png` and this README can reference it.
+![SSH Lite Client main window (dark mode)](docs/images/app-main-dark.png)
 
 ## Current MVP features
 
