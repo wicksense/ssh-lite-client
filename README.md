@@ -2,7 +2,7 @@
 
 Windows-first desktop app for quickly editing config files and scripts over SSH/SFTP.
 
-![SSH Lite Client dark mode screenshot](docs/images/ui-dark.png)
+<!-- Screenshot intentionally omitted until a clean terminal capture is added -->
 
 ## Motivation
 
@@ -16,6 +16,10 @@ The goal is to avoid the heavy startup and workflow overhead of full IDE remote 
 - basic terminal access when needed
 
 In short: optimize for speed and simplicity, not full IDE complexity.
+
+## Screenshot
+
+Drop a clean screenshot at `docs/images/app-main-dark.png` and this README can reference it.
 
 ## Current MVP features
 

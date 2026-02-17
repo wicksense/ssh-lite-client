@@ -104,8 +104,17 @@ function sanitizeTerminalText(text) {
   if (!text) return '';
 
   return text
+    // OSC sequences
     .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, '')
+    // ANSI CSI sequences (real ESC)
     .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, '')
+    // Caret-notation escapes that can appear in plain rendering, e.g. ^[[?2004h
+    .replace(/\^\[\[[0-?]*[ -/]*[@-~]/g, '')
+    // Bracketed-paste residue sometimes printed as plain text
+    .replace(/\[\?2004[hl]/g, '')
+    .replace(/\?2004[hl]/g, '')
+    .replace(/\b2004[hl]\b/g, '')
+    // remaining non-printable control chars
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
 }
 
@@ -325,7 +334,6 @@ ipcMain.handle('terminal:start', async () => {
 
         shellStream = stream;
         stream.setEncoding('utf8');
-        stream.write('\u001b[?2004l');
         stream.on('data', (chunk) => emitTerminalData(chunk));
         stream.on('close', () => {
           emitTerminalData('\n[terminal closed]\n');
