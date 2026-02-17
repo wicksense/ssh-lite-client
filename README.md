@@ -2,6 +2,8 @@
 
 Windows-first desktop app for quickly editing config files and scripts over SSH/SFTP.
 
+![SSH Lite Client dark mode screenshot](docs/images/ui-dark.png)
+
 ## Motivation
 
 This project exists to make remote Linux edits fast and low-friction for day-to-day tasks like updating Raspberry Pi configs or small scripts.
@@ -57,4 +59,6 @@ Installer output goes to `release/` (for example `SSH Lite Client-0.1.0-Setup-x6
 - This first version is intentionally minimal and optimized for speed.
 - Profiles and trusted host fingerprints are stored in Electron app data.
 - Packaging currently builds unsigned installers (expected for MVP).
+- Terminal output is currently normalized to plain text (ANSI/control sequences stripped) for MVP readability.
+- Planned pipeline item (later): upgrade terminal pane to true interactive terminal (xterm.js).
 - Next steps: key-agent support, safer privileged writes, and code signing.

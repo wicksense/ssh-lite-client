@@ -100,9 +100,18 @@ function toEntry(item) {
   };
 }
 
+function sanitizeTerminalText(text) {
+  if (!text) return '';
+
+  return text
+    .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, '')
+    .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+}
+
 function emitTerminalData(text) {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('terminal:data', text);
+    mainWindow.webContents.send('terminal:data', sanitizeTerminalText(text));
   }
 }
 
@@ -316,6 +325,7 @@ ipcMain.handle('terminal:start', async () => {
 
         shellStream = stream;
         stream.setEncoding('utf8');
+        stream.write('\u001b[?2004l');
         stream.on('data', (chunk) => emitTerminalData(chunk));
         stream.on('close', () => {
           emitTerminalData('\n[terminal closed]\n');
