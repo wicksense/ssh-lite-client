@@ -40,6 +40,20 @@ let currentPath = '.';
 let currentFile = '';
 let profiles = [];
 let terminalStarted = false;
+let isDirty = false;
+
+function updateCurrentFileLabel() {
+  if (!currentFile) {
+    currentFileEl.textContent = 'No file open';
+    return;
+  }
+  currentFileEl.textContent = isDirty ? `${currentFile} *` : currentFile;
+}
+
+function confirmDiscardUnsaved(actionLabel = 'continue') {
+  if (!isDirty) return true;
+  return window.confirm(`You have unsaved changes. Discard them and ${actionLabel}?`);
+}
 
 function applyTheme(theme) {
   const safeTheme = theme === 'light' ? 'light' : 'dark';
@@ -63,7 +77,8 @@ function closeSettings() {
 
 function closeCurrentFile() {
   currentFile = '';
-  currentFileEl.textContent = 'No file open';
+  isDirty = false;
+  updateCurrentFileLabel();
   editor.value = '';
   setStatus('Closed file');
 }
@@ -174,6 +189,10 @@ async function loadDir(path) {
         return;
       }
 
+      if (!confirmDiscardUnsaved('open another file')) {
+        return;
+      }
+
       const fileRes = await window.api.readFile(fullPath);
       if (!fileRes.ok) {
         setStatus(fileRes.error || 'Failed opening file', true);
@@ -181,7 +200,8 @@ async function loadDir(path) {
       }
 
       currentFile = fullPath;
-      currentFileEl.textContent = currentFile;
+      isDirty = false;
+      updateCurrentFileLabel();
       editor.value = fileRes.content || '';
       setStatus(`Opened ${fullPath}`);
     };
@@ -284,6 +304,10 @@ connectBtn.onclick = async () => {
 };
 
 disconnectBtn.onclick = async () => {
+  if (!confirmDiscardUnsaved('disconnect')) {
+    return;
+  }
+
   if (terminalStarted) {
     await window.api.stopTerminal();
     terminalStarted = false;
@@ -311,12 +335,17 @@ saveBtn.onclick = async () => {
     return;
   }
 
+  isDirty = false;
+  updateCurrentFileLabel();
   setStatus(`Saved ${currentFile}`);
 };
 
 closeFileBtn.onclick = () => {
   if (!currentFile) {
     setStatus('No file open', true);
+    return;
+  }
+  if (!confirmDiscardUnsaved('close this file')) {
     return;
   }
   closeCurrentFile();
@@ -457,6 +486,27 @@ themeSelect.onchange = () => {
   applyTheme(themeSelect.value);
 };
 
+editor.addEventListener('input', () => {
+  if (!currentFile) return;
+  if (!isDirty) {
+    isDirty = true;
+    updateCurrentFileLabel();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
+  if (!isSaveShortcut) return;
+  event.preventDefault();
+  void saveBtn.onclick();
+});
+
+window.addEventListener('beforeunload', (event) => {
+  if (!isDirty) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
+
 window.api.onTerminalData((text) => {
   appendTerminalOutput(text);
 });
@@ -465,4 +515,5 @@ loadThemePreference();
 loadSidebarWidthPreference();
 setupSidebarResize();
 showEditorView();
+updateCurrentFileLabel();
 void refreshProfiles();
