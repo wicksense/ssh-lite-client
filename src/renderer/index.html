@@ -70,8 +70,12 @@
         <textarea id="editor" spellcheck="false"></textarea>
         <section id="terminalPane" class="terminal-pane hidden">
           <div class="terminal-actions">
-            <button id="startTermBtn">Start Shell</button>
-            <button id="stopTermBtn">Stop Shell</button>
+            <div class="terminal-actions-left">
+              <button id="startTermBtn">Start Shell</button>
+              <button id="stopTermBtn">Stop Shell</button>
+              <button id="clearTermBtn" class="ghost-btn">Clear</button>
+            </div>
+            <span id="terminalStatus" class="terminal-status">Shell: stopped</span>
           </div>
           <pre id="terminalOutput"></pre>
           <div class="terminal-input-row">

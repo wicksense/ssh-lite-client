@@ -26,6 +26,8 @@ const terminalTabBtn = document.getElementById('terminalTabBtn');
 const terminalPane = document.getElementById('terminalPane');
 const startTermBtn = document.getElementById('startTermBtn');
 const stopTermBtn = document.getElementById('stopTermBtn');
+const clearTermBtn = document.getElementById('clearTermBtn');
+const terminalStatusEl = document.getElementById('terminalStatus');
 const terminalOutput = document.getElementById('terminalOutput');
 const terminalInput = document.getElementById('terminalInput');
 const sendTermBtn = document.getElementById('sendTermBtn');
@@ -44,6 +46,8 @@ let currentPath = '.';
 let currentFile = '';
 let profiles = [];
 let terminalStarted = false;
+let terminalStarting = false;
+let sshConnected = false;
 let isDirty = false;
 let discardResolver = null;
 
@@ -53,6 +57,56 @@ function updateCurrentFileLabel() {
     return;
   }
   currentFileEl.textContent = isDirty ? `${currentFile} *` : currentFile;
+}
+
+function updateTerminalUI() {
+  const canStart = sshConnected && !terminalStarted && !terminalStarting;
+  const canStop = terminalStarted && !terminalStarting;
+  const canSend = terminalStarted && !terminalStarting;
+
+  startTermBtn.disabled = !canStart;
+  stopTermBtn.disabled = !canStop;
+  sendTermBtn.disabled = !canSend;
+  terminalInput.disabled = !canSend;
+
+  if (!sshConnected) {
+    terminalStatusEl.textContent = 'Shell: connect first';
+  } else if (terminalStarting) {
+    terminalStatusEl.textContent = 'Shell: starting...';
+  } else if (terminalStarted) {
+    terminalStatusEl.textContent = 'Shell: running';
+  } else {
+    terminalStatusEl.textContent = 'Shell: stopped';
+  }
+}
+
+async function ensureTerminalStarted() {
+  if (!sshConnected) {
+    setStatus('Connect first to start terminal', true);
+    updateTerminalUI();
+    return false;
+  }
+
+  if (terminalStarted) {
+    updateTerminalUI();
+    return true;
+  }
+
+  terminalStarting = true;
+  updateTerminalUI();
+  const res = await window.api.startTerminal();
+  terminalStarting = false;
+
+  if (!res.ok) {
+    setStatus(res.error || 'Failed to start terminal', true);
+    updateTerminalUI();
+    return false;
+  }
+
+  terminalStarted = true;
+  setStatus('Terminal started');
+  updateTerminalUI();
+  return true;
 }
 
 function hideDiscardModal(confirmed) {
@@ -342,6 +396,8 @@ connectBtn.onclick = async () => {
     return;
   }
 
+  sshConnected = true;
+  updateTerminalUI();
   setStatus('Connected');
   await loadDir(startPathEl.value.trim() || pathInput.value.trim() || '.');
 };
@@ -355,7 +411,10 @@ disconnectBtn.onclick = async () => {
     await window.api.stopTerminal();
     terminalStarted = false;
   }
+  terminalStarting = false;
+  sshConnected = false;
   await window.api.disconnect();
+  updateTerminalUI();
   setStatus('Disconnected');
   fileList.innerHTML = '';
   closeCurrentFile();
@@ -456,38 +515,41 @@ deleteProfileBtn.onclick = async () => {
 };
 
 editorTabBtn.onclick = () => showEditorView();
-terminalTabBtn.onclick = () => showTerminalView();
+terminalTabBtn.onclick = async () => {
+  showTerminalView();
+  if (await ensureTerminalStarted()) {
+    terminalInput.focus();
+  }
+};
 
 startTermBtn.onclick = async () => {
-  const res = await window.api.startTerminal();
-  if (!res.ok) {
-    setStatus(res.error || 'Failed to start terminal', true);
-    return;
-  }
-  terminalStarted = true;
-  setStatus('Terminal started');
+  await ensureTerminalStarted();
   showTerminalView();
 };
 
 stopTermBtn.onclick = async () => {
+  if (!terminalStarted) {
+    updateTerminalUI();
+    return;
+  }
   const res = await window.api.stopTerminal();
   if (!res.ok) {
     setStatus(res.error || 'Failed to stop terminal', true);
     return;
   }
   terminalStarted = false;
+  updateTerminalUI();
   setStatus('Terminal stopped');
+};
+
+clearTermBtn.onclick = () => {
+  terminalOutput.textContent = '';
 };
 
 async function sendTerminalInput() {
   if (!terminalInput.value.trim()) return;
-  if (!terminalStarted) {
-    const startRes = await window.api.startTerminal();
-    if (!startRes.ok) {
-      setStatus(startRes.error || 'Failed to start terminal', true);
-      return;
-    }
-    terminalStarted = true;
+  if (!(await ensureTerminalStarted())) {
+    return;
   }
 
   const cmd = `${terminalInput.value}\n`;
@@ -572,6 +634,11 @@ window.addEventListener('focus', () => {
 
 window.api.onTerminalData((text) => {
   appendTerminalOutput(text);
+  if (typeof text === 'string' && text.includes('[terminal closed]')) {
+    terminalStarted = false;
+    terminalStarting = false;
+    updateTerminalUI();
+  }
 });
 
 loadThemePreference();
@@ -579,4 +646,5 @@ loadSidebarWidthPreference();
 setupSidebarResize();
 showEditorView();
 updateCurrentFileLabel();
+updateTerminalUI();
 void refreshProfiles();
