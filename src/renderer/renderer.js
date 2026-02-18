@@ -156,6 +156,19 @@ function showTerminalView() {
   editorTabBtn.classList.remove('active');
 }
 
+function focusEditorSoon() {
+  const tryFocus = () => {
+    window.focus();
+    editor.focus({ preventScroll: true });
+  };
+
+  requestAnimationFrame(() => {
+    tryFocus();
+    setTimeout(tryFocus, 0);
+    setTimeout(tryFocus, 80);
+  });
+}
+
 function appendTerminalOutput(text) {
   terminalOutput.textContent += text;
   terminalOutput.scrollTop = terminalOutput.scrollHeight;
@@ -207,11 +220,7 @@ async function loadDir(path) {
       updateCurrentFileLabel();
       editor.value = fileRes.content || '';
       showEditorView();
-      requestAnimationFrame(() => {
-        editor.focus();
-        const end = editor.value.length;
-        editor.setSelectionRange(end, end);
-      });
+      focusEditorSoon();
       setStatus(`Opened ${fullPath}`);
     };
 
@@ -514,6 +523,13 @@ window.addEventListener('beforeunload', (event) => {
   if (!isDirty) return;
   event.preventDefault();
   event.returnValue = '';
+});
+
+window.addEventListener('focus', () => {
+  const inEditorView = !editor.classList.contains('hidden');
+  if (currentFile && inEditorView) {
+    focusEditorSoon();
+  }
 });
 
 window.api.onTerminalData((text) => {
