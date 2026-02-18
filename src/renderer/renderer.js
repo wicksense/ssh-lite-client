@@ -103,7 +103,6 @@ function setupSidebarResize() {
   let dragging = false;
 
   const stopDragging = () => {
-    if (!dragging) return;
     dragging = false;
     document.body.classList.remove('resizing');
   };
@@ -121,6 +120,8 @@ function setupSidebarResize() {
 
   window.addEventListener('mouseup', stopDragging);
   window.addEventListener('blur', stopDragging);
+  window.addEventListener('pointerup', stopDragging);
+  document.addEventListener('mouseleave', stopDragging);
 }
 
 function setStatus(message, isError = false) {
@@ -158,7 +159,10 @@ function showTerminalView() {
 
 function focusEditorSoon() {
   const tryFocus = () => {
+    document.body.classList.remove('resizing');
     window.focus();
+    editor.disabled = false;
+    editor.readOnly = false;
     editor.focus({ preventScroll: true });
   };
 
@@ -166,6 +170,7 @@ function focusEditorSoon() {
     tryFocus();
     setTimeout(tryFocus, 0);
     setTimeout(tryFocus, 80);
+    setTimeout(tryFocus, 180);
   });
 }
 
