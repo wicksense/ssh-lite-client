@@ -35,11 +35,45 @@ const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const themeSelect = document.getElementById('themeSelect');
 const workspaceMain = document.getElementById('workspaceMain');
 const sidebarResizeHandle = document.getElementById('sidebarResizeHandle');
+const discardModal = document.getElementById('discardModal');
+const discardMessage = document.getElementById('discardMessage');
+const discardCancelBtn = document.getElementById('discardCancelBtn');
+const discardConfirmBtn = document.getElementById('discardConfirmBtn');
 
 let currentPath = '.';
 let currentFile = '';
 let profiles = [];
 let terminalStarted = false;
+let isDirty = false;
+let discardResolver = null;
+
+function updateCurrentFileLabel() {
+  if (!currentFile) {
+    currentFileEl.textContent = 'No file open';
+    return;
+  }
+  currentFileEl.textContent = isDirty ? `${currentFile} *` : currentFile;
+}
+
+function hideDiscardModal(confirmed) {
+  discardModal.classList.add('hidden');
+  const resolver = discardResolver;
+  discardResolver = null;
+  if (resolver) resolver(confirmed);
+}
+
+async function confirmDiscardUnsaved(actionLabel = 'continue') {
+  if (!isDirty) return true;
+
+  discardMessage.textContent = `You have unsaved changes. Discard them and ${actionLabel}?`;
+  discardModal.classList.remove('hidden');
+
+  discardCancelBtn.focus();
+
+  return new Promise((resolve) => {
+    discardResolver = resolve;
+  });
+}
 
 function applyTheme(theme) {
   const safeTheme = theme === 'light' ? 'light' : 'dark';
@@ -63,7 +97,8 @@ function closeSettings() {
 
 function closeCurrentFile() {
   currentFile = '';
-  currentFileEl.textContent = 'No file open';
+  isDirty = false;
+  updateCurrentFileLabel();
   editor.value = '';
   setStatus('Closed file');
 }
@@ -87,6 +122,11 @@ function loadSidebarWidthPreference() {
 function setupSidebarResize() {
   let dragging = false;
 
+  const stopDragging = () => {
+    dragging = false;
+    document.body.classList.remove('resizing');
+  };
+
   sidebarResizeHandle.addEventListener('mousedown', () => {
     dragging = true;
     document.body.classList.add('resizing');
@@ -98,11 +138,10 @@ function setupSidebarResize() {
     setSidebarWidth(event.clientX - rect.left);
   });
 
-  window.addEventListener('mouseup', () => {
-    if (!dragging) return;
-    dragging = false;
-    document.body.classList.remove('resizing');
-  });
+  window.addEventListener('mouseup', stopDragging);
+  window.addEventListener('blur', stopDragging);
+  window.addEventListener('pointerup', stopDragging);
+  document.addEventListener('mouseleave', stopDragging);
 }
 
 function setStatus(message, isError = false) {
@@ -136,6 +175,23 @@ function showTerminalView() {
   terminalPane.classList.remove('hidden');
   terminalTabBtn.classList.add('active');
   editorTabBtn.classList.remove('active');
+}
+
+function focusEditorSoon() {
+  const tryFocus = () => {
+    document.body.classList.remove('resizing');
+    window.focus();
+    editor.disabled = false;
+    editor.readOnly = false;
+    editor.focus({ preventScroll: true });
+  };
+
+  requestAnimationFrame(() => {
+    tryFocus();
+    setTimeout(tryFocus, 0);
+    setTimeout(tryFocus, 80);
+    setTimeout(tryFocus, 180);
+  });
 }
 
 function appendTerminalOutput(text) {
@@ -174,6 +230,10 @@ async function loadDir(path) {
         return;
       }
 
+      if (!(await confirmDiscardUnsaved('open another file'))) {
+        return;
+      }
+
       const fileRes = await window.api.readFile(fullPath);
       if (!fileRes.ok) {
         setStatus(fileRes.error || 'Failed opening file', true);
@@ -181,8 +241,11 @@ async function loadDir(path) {
       }
 
       currentFile = fullPath;
-      currentFileEl.textContent = currentFile;
+      isDirty = false;
+      updateCurrentFileLabel();
       editor.value = fileRes.content || '';
+      showEditorView();
+      focusEditorSoon();
       setStatus(`Opened ${fullPath}`);
     };
 
@@ -284,6 +347,10 @@ connectBtn.onclick = async () => {
 };
 
 disconnectBtn.onclick = async () => {
+  if (!(await confirmDiscardUnsaved('disconnect'))) {
+    return;
+  }
+
   if (terminalStarted) {
     await window.api.stopTerminal();
     terminalStarted = false;
@@ -311,12 +378,17 @@ saveBtn.onclick = async () => {
     return;
   }
 
+  isDirty = false;
+  updateCurrentFileLabel();
   setStatus(`Saved ${currentFile}`);
 };
 
-closeFileBtn.onclick = () => {
+closeFileBtn.onclick = async () => {
   if (!currentFile) {
     setStatus('No file open', true);
+    return;
+  }
+  if (!(await confirmDiscardUnsaved('close this file'))) {
     return;
   }
   closeCurrentFile();
@@ -447,8 +519,21 @@ settingsModal.onclick = (event) => {
   }
 };
 
+discardModal.onclick = (event) => {
+  if (event.target === discardModal) {
+    hideDiscardModal(false);
+  }
+};
+
+discardCancelBtn.onclick = () => hideDiscardModal(false);
+discardConfirmBtn.onclick = () => hideDiscardModal(true);
+
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
+    if (!discardModal.classList.contains('hidden')) {
+      hideDiscardModal(false);
+      return;
+    }
     closeSettings();
   }
 });
@@ -456,6 +541,34 @@ document.addEventListener('keydown', (event) => {
 themeSelect.onchange = () => {
   applyTheme(themeSelect.value);
 };
+
+editor.addEventListener('input', () => {
+  if (!currentFile) return;
+  if (!isDirty) {
+    isDirty = true;
+    updateCurrentFileLabel();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
+  if (!isSaveShortcut) return;
+  event.preventDefault();
+  void saveBtn.onclick();
+});
+
+window.addEventListener('beforeunload', (event) => {
+  if (!isDirty) return;
+  event.preventDefault();
+  event.returnValue = '';
+});
+
+window.addEventListener('focus', () => {
+  const inEditorView = !editor.classList.contains('hidden');
+  if (currentFile && inEditorView) {
+    focusEditorSoon();
+  }
+});
 
 window.api.onTerminalData((text) => {
   appendTerminalOutput(text);
@@ -465,4 +578,5 @@ loadThemePreference();
 loadSidebarWidthPreference();
 setupSidebarResize();
 showEditorView();
+updateCurrentFileLabel();
 void refreshProfiles();

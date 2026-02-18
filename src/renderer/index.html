@@ -99,6 +99,21 @@
       </div>
     </div>
 
+    <div id="discardModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="discardTitle">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="discardTitle">Unsaved changes</h2>
+        </div>
+        <div class="modal-body">
+          <p id="discardMessage" class="settings-note">You have unsaved changes. Discard them?</p>
+          <div class="modal-actions">
+            <button id="discardCancelBtn" class="ghost-btn">Cancel</button>
+            <button id="discardConfirmBtn">Discard</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="renderer.js"></script>
   </body>
 </html>
