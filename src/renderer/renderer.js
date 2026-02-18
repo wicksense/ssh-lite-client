@@ -102,6 +102,12 @@ function loadSidebarWidthPreference() {
 function setupSidebarResize() {
   let dragging = false;
 
+  const stopDragging = () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.classList.remove('resizing');
+  };
+
   sidebarResizeHandle.addEventListener('mousedown', () => {
     dragging = true;
     document.body.classList.add('resizing');
@@ -113,11 +119,8 @@ function setupSidebarResize() {
     setSidebarWidth(event.clientX - rect.left);
   });
 
-  window.addEventListener('mouseup', () => {
-    if (!dragging) return;
-    dragging = false;
-    document.body.classList.remove('resizing');
-  });
+  window.addEventListener('mouseup', stopDragging);
+  window.addEventListener('blur', stopDragging);
 }
 
 function setStatus(message, isError = false) {
@@ -203,6 +206,12 @@ async function loadDir(path) {
       isDirty = false;
       updateCurrentFileLabel();
       editor.value = fileRes.content || '';
+      showEditorView();
+      requestAnimationFrame(() => {
+        editor.focus();
+        const end = editor.value.length;
+        editor.setSelectionRange(end, end);
+      });
       setStatus(`Opened ${fullPath}`);
     };
 
