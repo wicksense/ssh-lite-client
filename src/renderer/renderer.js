@@ -35,12 +35,17 @@ const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const themeSelect = document.getElementById('themeSelect');
 const workspaceMain = document.getElementById('workspaceMain');
 const sidebarResizeHandle = document.getElementById('sidebarResizeHandle');
+const discardModal = document.getElementById('discardModal');
+const discardMessage = document.getElementById('discardMessage');
+const discardCancelBtn = document.getElementById('discardCancelBtn');
+const discardConfirmBtn = document.getElementById('discardConfirmBtn');
 
 let currentPath = '.';
 let currentFile = '';
 let profiles = [];
 let terminalStarted = false;
 let isDirty = false;
+let discardResolver = null;
 
 function updateCurrentFileLabel() {
   if (!currentFile) {
@@ -50,9 +55,24 @@ function updateCurrentFileLabel() {
   currentFileEl.textContent = isDirty ? `${currentFile} *` : currentFile;
 }
 
-function confirmDiscardUnsaved(actionLabel = 'continue') {
+function hideDiscardModal(confirmed) {
+  discardModal.classList.add('hidden');
+  const resolver = discardResolver;
+  discardResolver = null;
+  if (resolver) resolver(confirmed);
+}
+
+async function confirmDiscardUnsaved(actionLabel = 'continue') {
   if (!isDirty) return true;
-  return window.confirm(`You have unsaved changes. Discard them and ${actionLabel}?`);
+
+  discardMessage.textContent = `You have unsaved changes. Discard them and ${actionLabel}?`;
+  discardModal.classList.remove('hidden');
+
+  discardCancelBtn.focus();
+
+  return new Promise((resolve) => {
+    discardResolver = resolve;
+  });
 }
 
 function applyTheme(theme) {
@@ -210,7 +230,7 @@ async function loadDir(path) {
         return;
       }
 
-      if (!confirmDiscardUnsaved('open another file')) {
+      if (!(await confirmDiscardUnsaved('open another file'))) {
         return;
       }
 
@@ -327,7 +347,7 @@ connectBtn.onclick = async () => {
 };
 
 disconnectBtn.onclick = async () => {
-  if (!confirmDiscardUnsaved('disconnect')) {
+  if (!(await confirmDiscardUnsaved('disconnect'))) {
     return;
   }
 
@@ -363,12 +383,12 @@ saveBtn.onclick = async () => {
   setStatus(`Saved ${currentFile}`);
 };
 
-closeFileBtn.onclick = () => {
+closeFileBtn.onclick = async () => {
   if (!currentFile) {
     setStatus('No file open', true);
     return;
   }
-  if (!confirmDiscardUnsaved('close this file')) {
+  if (!(await confirmDiscardUnsaved('close this file'))) {
     return;
   }
   closeCurrentFile();
@@ -499,8 +519,21 @@ settingsModal.onclick = (event) => {
   }
 };
 
+discardModal.onclick = (event) => {
+  if (event.target === discardModal) {
+    hideDiscardModal(false);
+  }
+};
+
+discardCancelBtn.onclick = () => hideDiscardModal(false);
+discardConfirmBtn.onclick = () => hideDiscardModal(true);
+
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
+    if (!discardModal.classList.contains('hidden')) {
+      hideDiscardModal(false);
+      return;
+    }
     closeSettings();
   }
 });

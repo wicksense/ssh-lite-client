@@ -345,6 +345,13 @@ body.resizing {
   font-size: 13px;
 }
 
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
 @media (max-width: 1500px) {
   .conn-row-profile {
     grid-template-columns: minmax(220px, 1.8fr) auto auto auto minmax(180px, 1.2fr);
