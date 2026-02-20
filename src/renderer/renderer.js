@@ -29,6 +29,9 @@ const stopTermBtn = document.getElementById('stopTermBtn');
 const clearTermBtn = document.getElementById('clearTermBtn');
 const terminalStatusEl = document.getElementById('terminalStatus');
 const terminalHost = document.getElementById('terminalHost');
+const terminalContextMenu = document.getElementById('terminalContextMenu');
+const termMenuCopyBtn = document.getElementById('termMenuCopyBtn');
+const termMenuPasteBtn = document.getElementById('termMenuPasteBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
@@ -161,6 +164,16 @@ async function confirmHostTrust(hostKey) {
   return new Promise((resolve) => {
     hostTrustResolver = resolve;
   });
+}
+
+function hideTerminalContextMenu() {
+  terminalContextMenu.classList.add('hidden');
+}
+
+function showTerminalContextMenu(x, y) {
+  terminalContextMenu.style.left = `${x}px`;
+  terminalContextMenu.style.top = `${y}px`;
+  terminalContextMenu.classList.remove('hidden');
 }
 
 function applyTheme(theme) {
@@ -337,6 +350,34 @@ async function ensureXtermReady() {
       if (!text) return;
       event.preventDefault();
       void sendTextToTerminal(text);
+    });
+
+    terminalHost.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      showTerminalContextMenu(event.clientX, event.clientY);
+    });
+
+    termMenuCopyBtn.onclick = async () => {
+      const selected = term?.getSelection?.() || '';
+      if (selected) {
+        await navigator.clipboard?.writeText(selected);
+      }
+      hideTerminalContextMenu();
+    };
+
+    termMenuPasteBtn.onclick = async () => {
+      const text = await navigator.clipboard?.readText();
+      if (text) {
+        await sendTextToTerminal(text);
+      }
+      hideTerminalContextMenu();
+    };
+
+    document.addEventListener('click', () => hideTerminalContextMenu());
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        hideTerminalContextMenu();
+      }
     });
 
     term.onResize(({ cols, rows }) => {
