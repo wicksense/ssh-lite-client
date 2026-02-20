@@ -29,6 +29,9 @@ const stopTermBtn = document.getElementById('stopTermBtn');
 const clearTermBtn = document.getElementById('clearTermBtn');
 const terminalStatusEl = document.getElementById('terminalStatus');
 const terminalHost = document.getElementById('terminalHost');
+const terminalContextMenu = document.getElementById('terminalContextMenu');
+const termMenuCopyBtn = document.getElementById('termMenuCopyBtn');
+const termMenuPasteBtn = document.getElementById('termMenuPasteBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
@@ -161,6 +164,16 @@ async function confirmHostTrust(hostKey) {
   return new Promise((resolve) => {
     hostTrustResolver = resolve;
   });
+}
+
+function hideTerminalContextMenu() {
+  terminalContextMenu.classList.add('hidden');
+}
+
+function showTerminalContextMenu(x, y) {
+  terminalContextMenu.style.left = `${x}px`;
+  terminalContextMenu.style.top = `${y}px`;
+  terminalContextMenu.classList.remove('hidden');
 }
 
 function applyTheme(theme) {
@@ -309,7 +322,62 @@ async function ensureXtermReady() {
     fitAddon.fit();
 
     term.onData((data) => {
-      void window.api.sendTerminal(data);
+      void sendTextToTerminal(data);
+    });
+
+    term.attachCustomKeyEventHandler((event) => {
+      const key = event.key.toLowerCase();
+      const isMeta = event.ctrlKey || event.metaKey;
+
+      if (isMeta && key === 'c' && term.hasSelection()) {
+        const selected = term.getSelection();
+        if (selected) {
+          void navigator.clipboard?.writeText(selected);
+        }
+        return false;
+      }
+
+      if (event.type === 'keydown' && isMeta && event.shiftKey && key === 'v') {
+        void navigator.clipboard?.readText().then((text) => sendTextToTerminal(text));
+        return false;
+      }
+
+      return true;
+    });
+
+    terminalHost.addEventListener('paste', (event) => {
+      const text = event.clipboardData?.getData('text');
+      if (!text) return;
+      event.preventDefault();
+      void sendTextToTerminal(text);
+    });
+
+    terminalHost.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      showTerminalContextMenu(event.clientX, event.clientY);
+    });
+
+    termMenuCopyBtn.onclick = async () => {
+      const selected = term?.getSelection?.() || '';
+      if (selected) {
+        await navigator.clipboard?.writeText(selected);
+      }
+      hideTerminalContextMenu();
+    };
+
+    termMenuPasteBtn.onclick = async () => {
+      const text = await navigator.clipboard?.readText();
+      if (text) {
+        await sendTextToTerminal(text);
+      }
+      hideTerminalContextMenu();
+    };
+
+    document.addEventListener('click', () => hideTerminalContextMenu());
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        hideTerminalContextMenu();
+      }
     });
 
     term.onResize(({ cols, rows }) => {
@@ -327,6 +395,15 @@ async function ensureXtermReady() {
   } catch (err) {
     setStatus(`Failed to initialize terminal UI: ${err.message || err}`, true);
     return false;
+  }
+}
+
+async function sendTextToTerminal(text) {
+  if (!text) return;
+  if (!(await ensureTerminalStarted())) return;
+  const res = await window.api.sendTerminal(text);
+  if (!res.ok) {
+    setStatus(res.error || 'Failed sending terminal input', true);
   }
 }
 
@@ -703,6 +780,7 @@ window.api.onTerminalData((text) => {
     terminalStarted = false;
     terminalStarting = false;
     updateTerminalUI();
+    setStatus('Shell closed. Use Start Shell to reconnect.');
   }
 });
 
