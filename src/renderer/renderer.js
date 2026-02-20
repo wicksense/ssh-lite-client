@@ -309,7 +309,34 @@ async function ensureXtermReady() {
     fitAddon.fit();
 
     term.onData((data) => {
-      void window.api.sendTerminal(data);
+      void sendTextToTerminal(data);
+    });
+
+    term.attachCustomKeyEventHandler((event) => {
+      const key = event.key.toLowerCase();
+      const isMeta = event.ctrlKey || event.metaKey;
+
+      if (isMeta && key === 'c' && term.hasSelection()) {
+        const selected = term.getSelection();
+        if (selected) {
+          void navigator.clipboard?.writeText(selected);
+        }
+        return false;
+      }
+
+      if (event.type === 'keydown' && isMeta && event.shiftKey && key === 'v') {
+        void navigator.clipboard?.readText().then((text) => sendTextToTerminal(text));
+        return false;
+      }
+
+      return true;
+    });
+
+    terminalHost.addEventListener('paste', (event) => {
+      const text = event.clipboardData?.getData('text');
+      if (!text) return;
+      event.preventDefault();
+      void sendTextToTerminal(text);
     });
 
     term.onResize(({ cols, rows }) => {
@@ -327,6 +354,15 @@ async function ensureXtermReady() {
   } catch (err) {
     setStatus(`Failed to initialize terminal UI: ${err.message || err}`, true);
     return false;
+  }
+}
+
+async function sendTextToTerminal(text) {
+  if (!text) return;
+  if (!(await ensureTerminalStarted())) return;
+  const res = await window.api.sendTerminal(text);
+  if (!res.ok) {
+    setStatus(res.error || 'Failed sending terminal input', true);
   }
 }
 
@@ -703,6 +739,7 @@ window.api.onTerminalData((text) => {
     terminalStarted = false;
     terminalStarting = false;
     updateTerminalUI();
+    setStatus('Shell closed. Use Start Shell to reconnect.');
   }
 });
 
