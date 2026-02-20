@@ -1,6 +1,6 @@
 {
   "name": "ssh-lite-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": false,
   "description": "Lightweight SSH/SFTP editor for remote Linux hosts",
   "author": "wicksense",
