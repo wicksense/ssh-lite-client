@@ -296,24 +296,18 @@ body.resizing {
   font-size: 13px;
 }
 
-#terminalOutput {
+#terminalHost {
   margin: 0;
   background: #0b0f1a;
   color: #d5e4ff;
   flex: 1;
-  overflow: auto;
-  padding: 12px;
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.45;
+  overflow: hidden;
+  padding: 8px;
+  min-height: 0;
 }
 
-.terminal-input-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  padding: 10px;
-  border-top: 1px solid var(--border);
+#terminalHost .xterm {
+  height: 100%;
 }
 
 .modal {

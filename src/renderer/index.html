@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SSH Lite Client</title>
+    <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -77,11 +78,7 @@
             </div>
             <span id="terminalStatus" class="terminal-status">Shell: stopped</span>
           </div>
-          <pre id="terminalOutput"></pre>
-          <div class="terminal-input-row">
-            <input id="terminalInput" placeholder="Type command and press Enter" />
-            <button id="sendTermBtn">Send</button>
-          </div>
+          <div id="terminalHost"></div>
         </section>
       </section>
     </main>

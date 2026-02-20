@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('api', {
   deleteProfile: (profileName) => ipcRenderer.invoke('profiles:delete', profileName),
   startTerminal: () => ipcRenderer.invoke('terminal:start'),
   sendTerminal: (data) => ipcRenderer.invoke('terminal:send', data),
+  resizeTerminal: (cols, rows) => ipcRenderer.invoke('terminal:resize', cols, rows),
   stopTerminal: () => ipcRenderer.invoke('terminal:stop'),
   onTerminalData: (handler) => {
     const wrapped = (_event, text) => handler(text);
