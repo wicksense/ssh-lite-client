@@ -28,9 +28,7 @@ const startTermBtn = document.getElementById('startTermBtn');
 const stopTermBtn = document.getElementById('stopTermBtn');
 const clearTermBtn = document.getElementById('clearTermBtn');
 const terminalStatusEl = document.getElementById('terminalStatus');
-const terminalOutput = document.getElementById('terminalOutput');
-const terminalInput = document.getElementById('terminalInput');
-const sendTermBtn = document.getElementById('sendTermBtn');
+const terminalHost = document.getElementById('terminalHost');
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
@@ -41,6 +39,10 @@ const discardModal = document.getElementById('discardModal');
 const discardMessage = document.getElementById('discardMessage');
 const discardCancelBtn = document.getElementById('discardCancelBtn');
 const discardConfirmBtn = document.getElementById('discardConfirmBtn');
+const hostTrustModal = document.getElementById('hostTrustModal');
+const hostTrustMessage = document.getElementById('hostTrustMessage');
+const hostTrustCancelBtn = document.getElementById('hostTrustCancelBtn');
+const hostTrustConfirmBtn = document.getElementById('hostTrustConfirmBtn');
 
 let currentPath = '.';
 let currentFile = '';
@@ -50,6 +52,10 @@ let terminalStarting = false;
 let sshConnected = false;
 let isDirty = false;
 let discardResolver = null;
+let hostTrustResolver = null;
+let term = null;
+let fitAddon = null;
+let xtermReady = false;
 
 function updateCurrentFileLabel() {
   if (!currentFile) {
@@ -62,12 +68,9 @@ function updateCurrentFileLabel() {
 function updateTerminalUI() {
   const canStart = sshConnected && !terminalStarted && !terminalStarting;
   const canStop = terminalStarted && !terminalStarting;
-  const canSend = terminalStarted && !terminalStarting;
 
   startTermBtn.disabled = !canStart;
   stopTermBtn.disabled = !canStop;
-  sendTermBtn.disabled = !canSend;
-  terminalInput.disabled = !canSend;
 
   if (!sshConnected) {
     terminalStatusEl.textContent = 'Shell: connect first';
@@ -87,7 +90,15 @@ async function ensureTerminalStarted() {
     return false;
   }
 
+  if (!(await ensureXtermReady())) {
+    updateTerminalUI();
+    return false;
+  }
+
   if (terminalStarted) {
+    fitAddon?.fit();
+    void window.api.resizeTerminal(term.cols, term.rows);
+    term.focus();
     updateTerminalUI();
     return true;
   }
@@ -104,6 +115,9 @@ async function ensureTerminalStarted() {
   }
 
   terminalStarted = true;
+  fitAddon?.fit();
+  void window.api.resizeTerminal(term.cols, term.rows);
+  term.focus();
   setStatus('Terminal started');
   updateTerminalUI();
   return true;
@@ -126,6 +140,26 @@ async function confirmDiscardUnsaved(actionLabel = 'continue') {
 
   return new Promise((resolve) => {
     discardResolver = resolve;
+  });
+}
+
+function hideHostTrustModal(confirmed) {
+  hostTrustModal.classList.add('hidden');
+  const resolver = hostTrustResolver;
+  hostTrustResolver = null;
+  if (resolver) resolver(confirmed);
+}
+
+async function confirmHostTrust(hostKey) {
+  hostTrustMessage.textContent =
+    `Unknown host key for ${hostKey.host}:${hostKey.port}\n` +
+    `Fingerprint: ${hostKey.fingerprint}\n\nTrust this host and continue?`;
+
+  hostTrustModal.classList.remove('hidden');
+  hostTrustCancelBtn.focus();
+
+  return new Promise((resolve) => {
+    hostTrustResolver = resolve;
   });
 }
 
@@ -248,9 +282,57 @@ function focusEditorSoon() {
   });
 }
 
+async function ensureXtermReady() {
+  if (xtermReady) return true;
+
+  try {
+    const [{ Terminal }, { FitAddon }] = await Promise.all([
+      import('../../node_modules/@xterm/xterm/lib/xterm.mjs'),
+      import('../../node_modules/@xterm/addon-fit/lib/addon-fit.mjs')
+    ]);
+
+    term = new Terminal({
+      cursorBlink: true,
+      convertEol: true,
+      fontFamily: 'Consolas, "Courier New", monospace',
+      fontSize: 13,
+      theme: {
+        background: '#0b0f1a',
+        foreground: '#d5e4ff'
+      },
+      scrollback: 5000
+    });
+
+    fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(terminalHost);
+    fitAddon.fit();
+
+    term.onData((data) => {
+      void window.api.sendTerminal(data);
+    });
+
+    term.onResize(({ cols, rows }) => {
+      void window.api.resizeTerminal(cols, rows);
+    });
+
+    window.addEventListener('resize', () => {
+      if (!fitAddon) return;
+      fitAddon.fit();
+      void window.api.resizeTerminal(term.cols, term.rows);
+    });
+
+    xtermReady = true;
+    return true;
+  } catch (err) {
+    setStatus(`Failed to initialize terminal UI: ${err.message || err}`, true);
+    return false;
+  }
+}
+
 function appendTerminalOutput(text) {
-  terminalOutput.textContent += text;
-  terminalOutput.scrollTop = terminalOutput.scrollHeight;
+  if (!term) return;
+  term.write(text);
 }
 
 async function loadDir(path) {
@@ -369,11 +451,7 @@ async function connectWithHostTrustRetry() {
     return { ok: false, error: 'Host key not trusted and no fingerprint found' };
   }
 
-  const shouldTrust = window.confirm(
-    `Unknown host key for ${hostKey.host}:${hostKey.port}\n` +
-      `Fingerprint: ${hostKey.fingerprint}\n\n` +
-      'Trust this host and continue?'
-  );
+  const shouldTrust = await confirmHostTrust(hostKey);
   if (!shouldTrust) {
     return { ok: false, error: 'Connection canceled: host key not trusted' };
   }
@@ -418,7 +496,7 @@ disconnectBtn.onclick = async () => {
   setStatus('Disconnected');
   fileList.innerHTML = '';
   closeCurrentFile();
-  terminalOutput.textContent = '';
+  term?.clear();
 };
 
 loadBtn.onclick = async () => {
@@ -518,7 +596,7 @@ editorTabBtn.onclick = () => showEditorView();
 terminalTabBtn.onclick = async () => {
   showTerminalView();
   if (await ensureTerminalStarted()) {
-    terminalInput.focus();
+    term?.focus();
   }
 };
 
@@ -543,33 +621,8 @@ stopTermBtn.onclick = async () => {
 };
 
 clearTermBtn.onclick = () => {
-  terminalOutput.textContent = '';
-};
-
-async function sendTerminalInput() {
-  if (!terminalInput.value.trim()) return;
-  if (!(await ensureTerminalStarted())) {
-    return;
-  }
-
-  const cmd = `${terminalInput.value}\n`;
-  const res = await window.api.sendTerminal(cmd);
-  if (!res.ok) {
-    setStatus(res.error || 'Failed sending command', true);
-    return;
-  }
-  terminalInput.value = '';
-}
-
-sendTermBtn.onclick = () => {
-  void sendTerminalInput();
-};
-
-terminalInput.onkeydown = (event) => {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    void sendTerminalInput();
-  }
+  if (!term) return;
+  term.clear();
 };
 
 settingsBtn.onclick = () => openSettings();
@@ -587,13 +640,25 @@ discardModal.onclick = (event) => {
   }
 };
 
+hostTrustModal.onclick = (event) => {
+  if (event.target === hostTrustModal) {
+    hideHostTrustModal(false);
+  }
+};
+
 discardCancelBtn.onclick = () => hideDiscardModal(false);
 discardConfirmBtn.onclick = () => hideDiscardModal(true);
+hostTrustCancelBtn.onclick = () => hideHostTrustModal(false);
+hostTrustConfirmBtn.onclick = () => hideHostTrustModal(true);
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     if (!discardModal.classList.contains('hidden')) {
       hideDiscardModal(false);
+      return;
+    }
+    if (!hostTrustModal.classList.contains('hidden')) {
+      hideHostTrustModal(false);
       return;
     }
     closeSettings();

@@ -100,27 +100,9 @@ function toEntry(item) {
   };
 }
 
-function sanitizeTerminalText(text) {
-  if (!text) return '';
-
-  return text
-    // OSC sequences
-    .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, '')
-    // ANSI CSI sequences (real ESC)
-    .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, '')
-    // Caret-notation escapes that can appear in plain rendering, e.g. ^[[?2004h
-    .replace(/\^\[\[[0-?]*[ -/]*[@-~]/g, '')
-    // Bracketed-paste residue sometimes printed as plain text
-    .replace(/\[\?2004[hl]/g, '')
-    .replace(/\?2004[hl]/g, '')
-    .replace(/\b2004[hl]\b/g, '')
-    // remaining non-printable control chars
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
-}
-
 function emitTerminalData(text) {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('terminal:data', sanitizeTerminalText(text));
+    mainWindow.webContents.send('terminal:data', text || '');
   }
 }
 
@@ -353,6 +335,21 @@ ipcMain.handle('terminal:send', async (_event, data) => {
   }
   shellStream.write(data);
   return { ok: true };
+});
+
+ipcMain.handle('terminal:resize', async (_event, cols, rows) => {
+  if (!shellStream) {
+    return { ok: false, error: 'Terminal not started' };
+  }
+
+  try {
+    const safeCols = Math.max(20, Number(cols || 120));
+    const safeRows = Math.max(8, Number(rows || 30));
+    shellStream.setWindow(safeRows, safeCols, 0, 0);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 });
 
 ipcMain.handle('terminal:stop', async () => {
