@@ -39,6 +39,10 @@ const discardModal = document.getElementById('discardModal');
 const discardMessage = document.getElementById('discardMessage');
 const discardCancelBtn = document.getElementById('discardCancelBtn');
 const discardConfirmBtn = document.getElementById('discardConfirmBtn');
+const hostTrustModal = document.getElementById('hostTrustModal');
+const hostTrustMessage = document.getElementById('hostTrustMessage');
+const hostTrustCancelBtn = document.getElementById('hostTrustCancelBtn');
+const hostTrustConfirmBtn = document.getElementById('hostTrustConfirmBtn');
 
 let currentPath = '.';
 let currentFile = '';
@@ -48,6 +52,7 @@ let terminalStarting = false;
 let sshConnected = false;
 let isDirty = false;
 let discardResolver = null;
+let hostTrustResolver = null;
 let term = null;
 let fitAddon = null;
 let xtermReady = false;
@@ -135,6 +140,26 @@ async function confirmDiscardUnsaved(actionLabel = 'continue') {
 
   return new Promise((resolve) => {
     discardResolver = resolve;
+  });
+}
+
+function hideHostTrustModal(confirmed) {
+  hostTrustModal.classList.add('hidden');
+  const resolver = hostTrustResolver;
+  hostTrustResolver = null;
+  if (resolver) resolver(confirmed);
+}
+
+async function confirmHostTrust(hostKey) {
+  hostTrustMessage.textContent =
+    `Unknown host key for ${hostKey.host}:${hostKey.port}\n` +
+    `Fingerprint: ${hostKey.fingerprint}\n\nTrust this host and continue?`;
+
+  hostTrustModal.classList.remove('hidden');
+  hostTrustCancelBtn.focus();
+
+  return new Promise((resolve) => {
+    hostTrustResolver = resolve;
   });
 }
 
@@ -426,11 +451,7 @@ async function connectWithHostTrustRetry() {
     return { ok: false, error: 'Host key not trusted and no fingerprint found' };
   }
 
-  const shouldTrust = window.confirm(
-    `Unknown host key for ${hostKey.host}:${hostKey.port}\n` +
-      `Fingerprint: ${hostKey.fingerprint}\n\n` +
-      'Trust this host and continue?'
-  );
+  const shouldTrust = await confirmHostTrust(hostKey);
   if (!shouldTrust) {
     return { ok: false, error: 'Connection canceled: host key not trusted' };
   }
@@ -619,13 +640,25 @@ discardModal.onclick = (event) => {
   }
 };
 
+hostTrustModal.onclick = (event) => {
+  if (event.target === hostTrustModal) {
+    hideHostTrustModal(false);
+  }
+};
+
 discardCancelBtn.onclick = () => hideDiscardModal(false);
 discardConfirmBtn.onclick = () => hideDiscardModal(true);
+hostTrustCancelBtn.onclick = () => hideHostTrustModal(false);
+hostTrustConfirmBtn.onclick = () => hideHostTrustModal(true);
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     if (!discardModal.classList.contains('hidden')) {
       hideDiscardModal(false);
+      return;
+    }
+    if (!hostTrustModal.classList.contains('hidden')) {
+      hideHostTrustModal(false);
       return;
     }
     closeSettings();

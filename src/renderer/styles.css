@@ -352,6 +352,10 @@ body.resizing {
   font-size: 13px;
 }
 
+#hostTrustMessage {
+  white-space: pre-line;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

@@ -115,6 +115,21 @@
       </div>
     </div>
 
+    <div id="hostTrustModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="hostTrustTitle">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="hostTrustTitle">Trust host key?</h2>
+        </div>
+        <div class="modal-body">
+          <p id="hostTrustMessage" class="settings-note"></p>
+          <div class="modal-actions">
+            <button id="hostTrustCancelBtn" class="ghost-btn">Cancel</button>
+            <button id="hostTrustConfirmBtn">Trust and continue</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="renderer.js"></script>
   </body>
 </html>
