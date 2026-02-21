@@ -62,6 +62,7 @@ let xtermReady = false;
 let monacoApi = null;
 let monacoEditor = null;
 let monacoReady = false;
+let monacoInitPromise = null;
 let suppressDirtyTracking = false;
 
 function updateCurrentFileLabel() {
@@ -75,43 +76,66 @@ function updateCurrentFileLabel() {
 async function ensureMonacoReady() {
   if (monacoReady) return true;
 
+  if (!monacoInitPromise) {
+    monacoInitPromise = new Promise((resolve, reject) => {
+      try {
+        const amdRequire = window.require;
+        if (!amdRequire) {
+          reject(new Error('Monaco AMD loader not available'));
+          return;
+        }
+
+        amdRequire.config({
+          paths: {
+            vs: '../../node_modules/monaco-editor/min/vs'
+          }
+        });
+
+        amdRequire(['vs/editor/editor.main'], () => {
+          const monaco = window.monaco;
+          if (!monaco) {
+            reject(new Error('Monaco failed to initialize'));
+            return;
+          }
+
+          monacoApi = monaco;
+          monacoEditor = monaco.editor.create(editorHost, {
+            value: '',
+            language: 'plaintext',
+            automaticLayout: true,
+            minimap: { enabled: false },
+            fontSize: 13,
+            scrollBeyondLastLine: false,
+            theme: document.documentElement.getAttribute('data-theme') === 'light' ? 'vs' : 'vs-dark'
+          });
+
+          monacoEditor.onDidChangeModelContent(() => {
+            if (!currentFile || suppressDirtyTracking) return;
+            if (!isDirty) {
+              isDirty = true;
+              updateCurrentFileLabel();
+            }
+          });
+
+          monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+            void saveBtn.onclick();
+          });
+
+          monacoReady = true;
+          resolve(true);
+        }, (err) => reject(err));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
   try {
-    const monacoLoader = (await import('../../node_modules/@monaco-editor/loader/lib/esm/monaco.js')).default;
-    monacoLoader.config({
-      paths: {
-        vs: '../../node_modules/monaco-editor/min/vs'
-      }
-    });
-
-    const monaco = await monacoLoader.init();
-    monacoApi = monaco;
-
-    monacoEditor = monaco.editor.create(editorHost, {
-      value: '',
-      language: 'plaintext',
-      automaticLayout: true,
-      minimap: { enabled: false },
-      fontSize: 13,
-      scrollBeyondLastLine: false,
-      theme: document.documentElement.getAttribute('data-theme') === 'light' ? 'vs' : 'vs-dark'
-    });
-
-    monacoEditor.onDidChangeModelContent(() => {
-      if (!currentFile || suppressDirtyTracking) return;
-      if (!isDirty) {
-        isDirty = true;
-        updateCurrentFileLabel();
-      }
-    });
-
-    monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      void saveBtn.onclick();
-    });
-
-    monacoReady = true;
+    await monacoInitPromise;
     return true;
   } catch (err) {
     setStatus(`Failed to initialize editor: ${err.message || err}`, true);
+    monacoInitPromise = null;
     return false;
   }
 }
