@@ -19,38 +19,31 @@
     <section class="conn">
       <div class="conn-top-row">
         <select id="profileSelect"></select>
+        <input id="profileName" placeholder="Profile name" />
+        <button id="saveProfileBtn" class="ghost-btn">Save Profile</button>
+        <button id="deleteProfileBtn" class="ghost-btn">Delete Profile</button>
+      </div>
+
+      <div class="conn-row conn-row-basic">
+        <input id="host" placeholder="Host (e.g. 192.168.1.20)" />
+        <input id="username" placeholder="Username" />
+        <input id="password" type="password" placeholder="Password" />
         <button id="connectBtn">Connect</button>
         <button id="disconnectBtn">Disconnect</button>
         <span id="status">Disconnected</span>
       </div>
 
-      <details id="connDetails" class="conn-details">
-        <summary>Connection details</summary>
+      <div class="conn-row conn-row-options">
+        <label class="inline-check"><input id="useKeyAuth" type="checkbox" /> Use private key instead of password</label>
+      </div>
 
-        <div class="conn-row conn-row-basic">
-          <input id="host" placeholder="Host (e.g. 192.168.1.20)" />
-          <input id="username" placeholder="Username" />
-          <input id="password" type="password" placeholder="Password (or use private key below)" />
-          <button id="pickKeyBtn">Load Key File</button>
-        </div>
-
-        <div class="conn-row conn-row-advanced">
-          <input id="port" placeholder="Port" value="22" />
-          <input id="passphrase" type="password" placeholder="Key passphrase (optional)" />
-          <input id="startPath" placeholder="Start path (optional, defaults to .)" />
-        </div>
-
-        <div class="conn-row conn-row-key">
-          <textarea id="privateKey" placeholder="Private key (optional)"></textarea>
-        </div>
-
-        <div class="conn-row conn-row-profile-actions">
-          <input id="profileName" placeholder="Profile name" />
-          <button id="loadProfileBtn" class="ghost-btn">Load Profile</button>
-          <button id="saveProfileBtn" class="ghost-btn">Save Profile</button>
-          <button id="deleteProfileBtn" class="ghost-btn">Delete Profile</button>
-        </div>
-      </details>
+      <div id="keyAuthFields" class="conn-row conn-row-key hidden">
+        <button id="pickKeyBtn">Load Key File</button>
+        <input id="passphrase" type="password" placeholder="Key passphrase (only if key is encrypted)" />
+        <input id="port" placeholder="Port" value="22" />
+        <input id="startPath" placeholder="Start path (optional, defaults to .)" />
+        <textarea id="privateKey" placeholder="Private key"></textarea>
+      </div>
     </section>
 
     <main id="workspaceMain">

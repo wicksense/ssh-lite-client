@@ -70,21 +70,9 @@ header p {
 
 .conn-top-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto auto auto;
+  grid-template-columns: minmax(240px, 1fr) minmax(160px, 220px) auto auto;
   gap: 8px;
   align-items: center;
-}
-
-.conn-details {
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-}
-
-.conn-details > summary {
-  cursor: pointer;
-  color: var(--muted);
-  font-weight: 600;
-  margin-bottom: 10px;
 }
 
 .conn-row {
@@ -95,19 +83,28 @@ header p {
 }
 
 .conn-row-basic {
-  grid-template-columns: minmax(220px, 1.7fr) minmax(140px, 1fr) minmax(220px, 1.7fr) auto;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(140px, 1fr) minmax(220px, 1.5fr) auto auto auto;
 }
 
-.conn-row-advanced {
-  grid-template-columns: 90px minmax(220px, 1fr) minmax(220px, 1fr);
-}
-
-.conn-row-key {
+.conn-row-options {
   grid-template-columns: 1fr;
 }
 
-.conn-row-profile-actions {
-  grid-template-columns: minmax(180px, 1fr) auto auto auto;
+.inline-check {
+  color: var(--muted);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conn-row-key {
+  grid-template-columns: auto minmax(220px, 1.1fr) 90px minmax(180px, 1fr);
+}
+
+#privateKey {
+  grid-column: 1 / -1;
+  min-height: 72px;
 }
 
 .conn input,
@@ -413,22 +410,24 @@ body.resizing {
     grid-template-columns: 1fr auto auto;
   }
 
-  #status {
+  #profileName {
     grid-column: 1 / -1;
   }
 
   .conn-row-basic,
-  .conn-row-advanced,
-  .conn-row-profile-actions {
+  .conn-row-key {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #status {
+    grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 960px) {
   .conn-top-row,
   .conn-row-basic,
-  .conn-row-advanced,
-  .conn-row-profile-actions {
+  .conn-row-key {
     grid-template-columns: 1fr;
   }
 

@@ -8,8 +8,8 @@ const passphraseEl = document.getElementById('passphrase');
 const startPathEl = document.getElementById('startPath');
 const profileSelectEl = document.getElementById('profileSelect');
 const profileNameEl = document.getElementById('profileName');
-const connDetailsEl = document.getElementById('connDetails');
-const loadProfileBtn = document.getElementById('loadProfileBtn');
+const useKeyAuthEl = document.getElementById('useKeyAuth');
+const keyAuthFieldsEl = document.getElementById('keyAuthFields');
 const saveProfileBtn = document.getElementById('saveProfileBtn');
 const deleteProfileBtn = document.getElementById('deleteProfileBtn');
 const connectBtn = document.getElementById('connectBtn');
@@ -614,6 +614,12 @@ async function loadDir(path) {
   setStatus(`Loaded ${path}`);
 }
 
+function updateAuthModeUI() {
+  const useKey = !!useKeyAuthEl.checked;
+  keyAuthFieldsEl.classList.toggle('hidden', !useKey);
+  passEl.classList.toggle('hidden', useKey);
+}
+
 function applyProfile(profile) {
   if (!profile) return;
   profileNameEl.value = profile.name || '';
@@ -651,13 +657,14 @@ async function refreshProfiles() {
 }
 
 async function connectWithHostTrustRetry() {
+  const useKeyAuth = !!useKeyAuthEl.checked;
   const connectPayload = {
     host: hostEl.value.trim(),
     port: portEl.value.trim(),
     username: userEl.value.trim(),
-    password: passEl.value,
-    privateKey: keyEl.value,
-    passphrase: passphraseEl.value
+    password: useKeyAuth ? '' : passEl.value,
+    privateKey: useKeyAuth ? keyEl.value : '',
+    passphrase: useKeyAuth ? passphraseEl.value : ''
   };
 
   let res = await window.api.connect(connectPayload);
@@ -713,7 +720,6 @@ connectBtn.onclick = async () => {
   sshConnected = true;
   updateTerminalUI();
   setStatus('Connected');
-  connDetailsEl.open = false;
   await loadDir(startPathEl.value.trim() || pathInput.value.trim() || '.');
 };
 
@@ -729,7 +735,6 @@ disconnectBtn.onclick = async () => {
   terminalStarting = false;
   sshConnected = false;
   await window.api.disconnect();
-  connDetailsEl.open = true;
   updateTerminalUI();
   setStatus('Disconnected');
   fileList.innerHTML = '';
@@ -790,15 +795,8 @@ profileSelectEl.onchange = () => {
   setStatus('Profile loaded (password/private key are not stored in profiles)');
 };
 
-loadProfileBtn.onclick = async () => {
-  const selectedName = profileSelectEl.value;
-  const profile = profiles.find((p) => p.name === selectedName);
-  if (!profile) {
-    setStatus('Select a profile first', true);
-    return;
-  }
-  applyProfile(profile);
-  setStatus(`Loaded profile ${selectedName} (password/private key are not stored)`);
+useKeyAuthEl.onchange = () => {
+  updateAuthModeUI();
 };
 
 saveProfileBtn.onclick = async () => {
@@ -964,5 +962,6 @@ setupSidebarResize();
 showEditorView();
 void ensureMonacoReady();
 updateCurrentFileLabel();
+updateAuthModeUI();
 updateTerminalUI();
 void refreshProfiles();
