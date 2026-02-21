@@ -46,6 +46,10 @@ const hostTrustModal = document.getElementById('hostTrustModal');
 const hostTrustMessage = document.getElementById('hostTrustMessage');
 const hostTrustCancelBtn = document.getElementById('hostTrustCancelBtn');
 const hostTrustConfirmBtn = document.getElementById('hostTrustConfirmBtn');
+const deleteProfileModal = document.getElementById('deleteProfileModal');
+const deleteProfileMessage = document.getElementById('deleteProfileMessage');
+const deleteProfileCancelBtn = document.getElementById('deleteProfileCancelBtn');
+const deleteProfileConfirmBtn = document.getElementById('deleteProfileConfirmBtn');
 
 let currentPath = '.';
 let currentFile = '';
@@ -56,6 +60,7 @@ let sshConnected = false;
 let isDirty = false;
 let discardResolver = null;
 let hostTrustResolver = null;
+let deleteProfileResolver = null;
 let term = null;
 let fitAddon = null;
 let xtermReady = false;
@@ -296,6 +301,23 @@ async function confirmHostTrust(hostKey) {
 
   return new Promise((resolve) => {
     hostTrustResolver = resolve;
+  });
+}
+
+function hideDeleteProfileModal(confirmed) {
+  deleteProfileModal.classList.add('hidden');
+  const resolver = deleteProfileResolver;
+  deleteProfileResolver = null;
+  if (resolver) resolver(confirmed);
+}
+
+async function confirmDeleteProfile(profileName) {
+  deleteProfileMessage.textContent = `Delete profile \"${profileName}\"?`;
+  deleteProfileModal.classList.remove('hidden');
+  deleteProfileCancelBtn.focus();
+
+  return new Promise((resolve) => {
+    deleteProfileResolver = resolve;
   });
 }
 
@@ -794,7 +816,7 @@ deleteProfileBtn.onclick = async () => {
     setStatus('Choose a profile to delete', true);
     return;
   }
-  const confirmed = window.confirm(`Delete profile "${target}"?`);
+  const confirmed = await confirmDeleteProfile(target);
   if (!confirmed) {
     return;
   }
@@ -861,10 +883,18 @@ hostTrustModal.onclick = (event) => {
   }
 };
 
+deleteProfileModal.onclick = (event) => {
+  if (event.target === deleteProfileModal) {
+    hideDeleteProfileModal(false);
+  }
+};
+
 discardCancelBtn.onclick = () => hideDiscardModal(false);
 discardConfirmBtn.onclick = () => hideDiscardModal(true);
 hostTrustCancelBtn.onclick = () => hideHostTrustModal(false);
 hostTrustConfirmBtn.onclick = () => hideHostTrustModal(true);
+deleteProfileCancelBtn.onclick = () => hideDeleteProfileModal(false);
+deleteProfileConfirmBtn.onclick = () => hideDeleteProfileModal(true);
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
@@ -874,6 +904,10 @@ document.addEventListener('keydown', (event) => {
     }
     if (!hostTrustModal.classList.contains('hidden')) {
       hideHostTrustModal(false);
+      return;
+    }
+    if (!deleteProfileModal.classList.contains('hidden')) {
+      hideDeleteProfileModal(false);
       return;
     }
     closeSettings();
