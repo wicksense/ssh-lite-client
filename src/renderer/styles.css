@@ -97,8 +97,6 @@ header p {
 .conn textarea,
 .conn select,
 .path-row input,
-#editor,
-#terminalInput,
 #themeSelect {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -260,13 +258,12 @@ body.resizing {
   font-size: 14px;
 }
 
-#editor {
+#editorHost {
   border: 0;
   border-radius: 0 0 12px 12px;
-  resize: none;
   flex: 1;
-  font-family: 'Consolas', 'Courier New', monospace;
-  line-height: 1.4;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .terminal-pane {

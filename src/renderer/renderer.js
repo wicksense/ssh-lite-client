@@ -17,7 +17,7 @@ const statusEl = document.getElementById('status');
 const pathInput = document.getElementById('pathInput');
 const loadBtn = document.getElementById('loadBtn');
 const fileList = document.getElementById('fileList');
-const editor = document.getElementById('editor');
+const editorHost = document.getElementById('editorHost');
 const saveBtn = document.getElementById('saveBtn');
 const closeFileBtn = document.getElementById('closeFileBtn');
 const currentFileEl = document.getElementById('currentFile');
@@ -59,6 +59,10 @@ let hostTrustResolver = null;
 let term = null;
 let fitAddon = null;
 let xtermReady = false;
+let monacoApi = null;
+let monacoEditor = null;
+let monacoReady = false;
+let suppressDirtyTracking = false;
 
 function updateCurrentFileLabel() {
   if (!currentFile) {
@@ -66,6 +70,111 @@ function updateCurrentFileLabel() {
     return;
   }
   currentFileEl.textContent = isDirty ? `${currentFile} *` : currentFile;
+}
+
+async function ensureMonacoReady() {
+  if (monacoReady) return true;
+
+  try {
+    const monacoLoader = (await import('../../node_modules/@monaco-editor/loader/lib/esm/monaco.js')).default;
+    monacoLoader.config({
+      paths: {
+        vs: '../../node_modules/monaco-editor/min/vs'
+      }
+    });
+
+    const monaco = await monacoLoader.init();
+    monacoApi = monaco;
+
+    monacoEditor = monaco.editor.create(editorHost, {
+      value: '',
+      language: 'plaintext',
+      automaticLayout: true,
+      minimap: { enabled: false },
+      fontSize: 13,
+      scrollBeyondLastLine: false,
+      theme: document.documentElement.getAttribute('data-theme') === 'light' ? 'vs' : 'vs-dark'
+    });
+
+    monacoEditor.onDidChangeModelContent(() => {
+      if (!currentFile || suppressDirtyTracking) return;
+      if (!isDirty) {
+        isDirty = true;
+        updateCurrentFileLabel();
+      }
+    });
+
+    monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      void saveBtn.onclick();
+    });
+
+    monacoReady = true;
+    return true;
+  } catch (err) {
+    setStatus(`Failed to initialize editor: ${err.message || err}`, true);
+    return false;
+  }
+}
+
+function getEditorValue() {
+  return monacoEditor ? monacoEditor.getValue() : '';
+}
+
+function setEditorValue(text) {
+  if (!monacoEditor) return;
+  suppressDirtyTracking = true;
+  monacoEditor.setValue(text || '');
+  suppressDirtyTracking = false;
+}
+
+function setEditorLanguageFromPath(filePath) {
+  if (!monacoEditor) return;
+  const model = monacoEditor.getModel();
+  if (!model) return;
+
+  const ext = (filePath.split('.').pop() || '').toLowerCase();
+  const map = {
+    js: 'javascript',
+    ts: 'typescript',
+    json: 'json',
+    sh: 'shell',
+    bash: 'shell',
+    zsh: 'shell',
+    yml: 'yaml',
+    yaml: 'yaml',
+    md: 'markdown',
+    py: 'python',
+    conf: 'ini',
+    ini: 'ini',
+    toml: 'ini',
+    xml: 'xml',
+    html: 'html',
+    css: 'css'
+  };
+
+  const language = map[ext] || 'plaintext';
+  monacoApi?.editor.setModelLanguage(model, language);
+}
+
+function updateEditorTheme() {
+  if (!monacoReady) return;
+  const theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'vs' : 'vs-dark';
+  monacoApi?.editor.setTheme(theme);
+}
+
+function focusEditorSoon() {
+  const tryFocus = () => {
+    document.body.classList.remove('resizing');
+    window.focus();
+    monacoEditor?.focus();
+  };
+
+  requestAnimationFrame(() => {
+    tryFocus();
+    setTimeout(tryFocus, 0);
+    setTimeout(tryFocus, 80);
+    setTimeout(tryFocus, 180);
+  });
 }
 
 function updateTerminalUI() {
@@ -200,7 +309,8 @@ function closeCurrentFile() {
   currentFile = '';
   isDirty = false;
   updateCurrentFileLabel();
-  editor.value = '';
+  setEditorValue('');
+  setEditorLanguageFromPath('');
   setStatus('Closed file');
 }
 
@@ -265,34 +375,18 @@ function joinPath(base, name) {
 }
 
 function showEditorView() {
-  editor.classList.remove('hidden');
+  editorHost.classList.remove('hidden');
   terminalPane.classList.add('hidden');
   editorTabBtn.classList.add('active');
   terminalTabBtn.classList.remove('active');
+  monacoEditor?.layout();
 }
 
 function showTerminalView() {
-  editor.classList.add('hidden');
+  editorHost.classList.add('hidden');
   terminalPane.classList.remove('hidden');
   terminalTabBtn.classList.add('active');
   editorTabBtn.classList.remove('active');
-}
-
-function focusEditorSoon() {
-  const tryFocus = () => {
-    document.body.classList.remove('resizing');
-    window.focus();
-    editor.disabled = false;
-    editor.readOnly = false;
-    editor.focus({ preventScroll: true });
-  };
-
-  requestAnimationFrame(() => {
-    tryFocus();
-    setTimeout(tryFocus, 0);
-    setTimeout(tryFocus, 80);
-    setTimeout(tryFocus, 180);
-  });
 }
 
 async function ensureXtermReady() {
@@ -443,6 +537,10 @@ async function loadDir(path) {
         return;
       }
 
+      if (!(await ensureMonacoReady())) {
+        return;
+      }
+
       if (!(await confirmDiscardUnsaved('open another file'))) {
         return;
       }
@@ -456,7 +554,8 @@ async function loadDir(path) {
       currentFile = fullPath;
       isDirty = false;
       updateCurrentFileLabel();
-      editor.value = fileRes.content || '';
+      setEditorValue(fileRes.content || '');
+      setEditorLanguageFromPath(fullPath);
       showEditorView();
       focusEditorSoon();
       setStatus(`Opened ${fullPath}`);
@@ -586,7 +685,7 @@ saveBtn.onclick = async () => {
     return;
   }
 
-  const res = await window.api.writeFile(currentFile, editor.value);
+  const res = await window.api.writeFile(currentFile, getEditorValue());
   if (!res.ok) {
     setStatus(res.error || 'Save failed', true);
     return;
@@ -744,15 +843,8 @@ document.addEventListener('keydown', (event) => {
 
 themeSelect.onchange = () => {
   applyTheme(themeSelect.value);
+  updateEditorTheme();
 };
-
-editor.addEventListener('input', () => {
-  if (!currentFile) return;
-  if (!isDirty) {
-    isDirty = true;
-    updateCurrentFileLabel();
-  }
-});
 
 document.addEventListener('keydown', (event) => {
   const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
@@ -768,7 +860,7 @@ window.addEventListener('beforeunload', (event) => {
 });
 
 window.addEventListener('focus', () => {
-  const inEditorView = !editor.classList.contains('hidden');
+  const inEditorView = !editorHost.classList.contains('hidden');
   if (currentFile && inEditorView) {
     focusEditorSoon();
   }
@@ -788,6 +880,7 @@ loadThemePreference();
 loadSidebarWidthPreference();
 setupSidebarResize();
 showEditorView();
+void ensureMonacoReady();
 updateCurrentFileLabel();
 updateTerminalUI();
 void refreshProfiles();
