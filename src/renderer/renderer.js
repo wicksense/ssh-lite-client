@@ -620,6 +620,11 @@ function applyProfile(profile) {
   portEl.value = String(profile.port || 22);
   userEl.value = profile.username || '';
   startPathEl.value = profile.startPath || '.';
+
+  // Credentials are intentionally not persisted in profiles.
+  passEl.value = '';
+  keyEl.value = '';
+  passphraseEl.value = '';
 }
 
 async function refreshProfiles() {
@@ -779,6 +784,7 @@ profileSelectEl.onchange = () => {
   const profile = profiles.find((p) => p.name === selectedName);
   if (!profile) return;
   applyProfile(profile);
+  setStatus('Profile loaded (password/private key are not stored in profiles)');
 };
 
 loadProfileBtn.onclick = async () => {
@@ -789,7 +795,7 @@ loadProfileBtn.onclick = async () => {
     return;
   }
   applyProfile(profile);
-  setStatus(`Loaded profile ${selectedName}`);
+  setStatus(`Loaded profile ${selectedName} (password/private key are not stored)`);
 };
 
 saveProfileBtn.onclick = async () => {
