@@ -8,6 +8,7 @@ const passphraseEl = document.getElementById('passphrase');
 const startPathEl = document.getElementById('startPath');
 const profileSelectEl = document.getElementById('profileSelect');
 const profileNameEl = document.getElementById('profileName');
+const connDetailsEl = document.getElementById('connDetails');
 const loadProfileBtn = document.getElementById('loadProfileBtn');
 const saveProfileBtn = document.getElementById('saveProfileBtn');
 const deleteProfileBtn = document.getElementById('deleteProfileBtn');
@@ -712,6 +713,7 @@ connectBtn.onclick = async () => {
   sshConnected = true;
   updateTerminalUI();
   setStatus('Connected');
+  connDetailsEl.open = false;
   await loadDir(startPathEl.value.trim() || pathInput.value.trim() || '.');
 };
 
@@ -727,6 +729,7 @@ disconnectBtn.onclick = async () => {
   terminalStarting = false;
   sshConnected = false;
   await window.api.disconnect();
+  connDetailsEl.open = true;
   updateTerminalUI();
   setStatus('Disconnected');
   fileList.innerHTML = '';
