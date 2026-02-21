@@ -647,8 +647,8 @@ async function connectWithHostTrustRetry() {
     hostKey = pendingRes.hostKey;
   }
 
-  if (!hostKey) {
-    return { ok: false, error: 'Host key not trusted and no fingerprint found' };
+  if (!hostKey || !hostKey.host || !hostKey.port || !hostKey.fingerprint) {
+    return { ok: false, error: 'Host key details missing. Check host/username fields and try again.' };
   }
 
   const shouldTrust = await confirmHostTrust(hostKey);
@@ -666,6 +666,14 @@ async function connectWithHostTrustRetry() {
 }
 
 connectBtn.onclick = async () => {
+  const host = hostEl.value.trim();
+  const username = userEl.value.trim();
+
+  if (!host || !username) {
+    setStatus('Host and username are required (load/select a profile first)', true);
+    return;
+  }
+
   setStatus('Connecting...');
   const res = await connectWithHostTrustRetry();
 
@@ -742,6 +750,13 @@ pickKeyBtn.onclick = async () => {
 
   keyEl.value = res.keyContent || '';
   setStatus(`Loaded key from ${res.filePath}`);
+};
+
+profileSelectEl.onchange = () => {
+  const selectedName = profileSelectEl.value;
+  const profile = profiles.find((p) => p.name === selectedName);
+  if (!profile) return;
+  applyProfile(profile);
 };
 
 loadProfileBtn.onclick = async () => {
