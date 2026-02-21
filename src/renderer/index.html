@@ -17,31 +17,32 @@
     </header>
 
     <section class="conn">
-      <div class="conn-row conn-row-profile">
+      <div class="conn-top-row">
         <select id="profileSelect"></select>
-        <button id="loadProfileBtn">Load Profile</button>
-        <button id="saveProfileBtn">Save Profile</button>
-        <button id="deleteProfileBtn">Delete Profile</button>
         <input id="profileName" placeholder="Profile name" />
+        <button id="saveProfileBtn" class="ghost-btn">Save Profile</button>
+        <button id="deleteProfileBtn" class="ghost-btn">Delete Profile</button>
       </div>
 
-      <div class="conn-row conn-row-credentials">
+      <div class="conn-row conn-row-basic">
         <input id="host" placeholder="Host (e.g. 192.168.1.20)" />
-        <input id="port" placeholder="Port" value="22" />
         <input id="username" placeholder="Username" />
-        <input id="password" type="password" placeholder="Password (or use private key below)" />
-        <button id="pickKeyBtn">Load Key File</button>
-        <input id="passphrase" type="password" placeholder="Key passphrase (optional)" />
-        <input id="startPath" placeholder="Start path (optional, defaults to .)" />
+        <input id="password" type="password" placeholder="Password" />
+        <button id="connectBtn">Connect</button>
+        <button id="disconnectBtn">Disconnect</button>
+        <span id="status">Disconnected</span>
       </div>
 
-      <div class="conn-row conn-row-key">
-        <textarea id="privateKey" placeholder="Private key (optional)"></textarea>
-        <div class="conn-actions">
-          <button id="connectBtn">Connect</button>
-          <button id="disconnectBtn">Disconnect</button>
-          <span id="status">Disconnected</span>
-        </div>
+      <div class="conn-row conn-row-options">
+        <label class="inline-check"><input id="useKeyAuth" type="checkbox" /> Use private key instead of password</label>
+      </div>
+
+      <div id="keyAuthFields" class="conn-row conn-row-key hidden">
+        <button id="pickKeyBtn">Load Key File</button>
+        <input id="passphrase" type="password" placeholder="Key passphrase (only if key is encrypted)" />
+        <input id="port" placeholder="Port" value="22" />
+        <input id="startPath" placeholder="Start path (optional, defaults to .)" />
+        <textarea id="privateKey" placeholder="Private key"></textarea>
       </div>
     </section>
 
@@ -68,7 +69,7 @@
             <button id="saveBtn">Save</button>
           </div>
         </div>
-        <textarea id="editor" spellcheck="false"></textarea>
+        <div id="editorHost" aria-label="File editor"></div>
         <section id="terminalPane" class="terminal-pane hidden">
           <div class="terminal-actions">
             <div class="terminal-actions-left">
@@ -134,6 +135,22 @@
       </div>
     </div>
 
+    <div id="deleteProfileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="deleteProfileTitle">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="deleteProfileTitle">Delete profile?</h2>
+        </div>
+        <div class="modal-body">
+          <p id="deleteProfileMessage" class="settings-note"></p>
+          <div class="modal-actions">
+            <button id="deleteProfileCancelBtn" class="ghost-btn">Cancel</button>
+            <button id="deleteProfileConfirmBtn">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../../node_modules/monaco-editor/min/vs/loader.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>

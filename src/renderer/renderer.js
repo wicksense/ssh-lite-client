@@ -8,7 +8,8 @@ const passphraseEl = document.getElementById('passphrase');
 const startPathEl = document.getElementById('startPath');
 const profileSelectEl = document.getElementById('profileSelect');
 const profileNameEl = document.getElementById('profileName');
-const loadProfileBtn = document.getElementById('loadProfileBtn');
+const useKeyAuthEl = document.getElementById('useKeyAuth');
+const keyAuthFieldsEl = document.getElementById('keyAuthFields');
 const saveProfileBtn = document.getElementById('saveProfileBtn');
 const deleteProfileBtn = document.getElementById('deleteProfileBtn');
 const connectBtn = document.getElementById('connectBtn');
@@ -17,7 +18,7 @@ const statusEl = document.getElementById('status');
 const pathInput = document.getElementById('pathInput');
 const loadBtn = document.getElementById('loadBtn');
 const fileList = document.getElementById('fileList');
-const editor = document.getElementById('editor');
+const editorHost = document.getElementById('editorHost');
 const saveBtn = document.getElementById('saveBtn');
 const closeFileBtn = document.getElementById('closeFileBtn');
 const currentFileEl = document.getElementById('currentFile');
@@ -46,6 +47,10 @@ const hostTrustModal = document.getElementById('hostTrustModal');
 const hostTrustMessage = document.getElementById('hostTrustMessage');
 const hostTrustCancelBtn = document.getElementById('hostTrustCancelBtn');
 const hostTrustConfirmBtn = document.getElementById('hostTrustConfirmBtn');
+const deleteProfileModal = document.getElementById('deleteProfileModal');
+const deleteProfileMessage = document.getElementById('deleteProfileMessage');
+const deleteProfileCancelBtn = document.getElementById('deleteProfileCancelBtn');
+const deleteProfileConfirmBtn = document.getElementById('deleteProfileConfirmBtn');
 
 let currentPath = '.';
 let currentFile = '';
@@ -56,9 +61,15 @@ let sshConnected = false;
 let isDirty = false;
 let discardResolver = null;
 let hostTrustResolver = null;
+let deleteProfileResolver = null;
 let term = null;
 let fitAddon = null;
 let xtermReady = false;
+let monacoApi = null;
+let monacoEditor = null;
+let monacoReady = false;
+let monacoInitPromise = null;
+let suppressDirtyTracking = false;
 
 function updateCurrentFileLabel() {
   if (!currentFile) {
@@ -66,6 +77,134 @@ function updateCurrentFileLabel() {
     return;
   }
   currentFileEl.textContent = isDirty ? `${currentFile} *` : currentFile;
+}
+
+async function ensureMonacoReady() {
+  if (monacoReady) return true;
+
+  if (!monacoInitPromise) {
+    monacoInitPromise = new Promise((resolve, reject) => {
+      try {
+        const amdRequire = window.require;
+        if (!amdRequire) {
+          reject(new Error('Monaco AMD loader not available'));
+          return;
+        }
+
+        amdRequire.config({
+          paths: {
+            vs: '../../node_modules/monaco-editor/min/vs'
+          }
+        });
+
+        amdRequire(['vs/editor/editor.main'], () => {
+          const monaco = window.monaco;
+          if (!monaco) {
+            reject(new Error('Monaco failed to initialize'));
+            return;
+          }
+
+          monacoApi = monaco;
+          monacoEditor = monaco.editor.create(editorHost, {
+            value: '',
+            language: 'plaintext',
+            automaticLayout: true,
+            minimap: { enabled: false },
+            fontSize: 13,
+            scrollBeyondLastLine: false,
+            theme: document.documentElement.getAttribute('data-theme') === 'light' ? 'vs' : 'vs-dark'
+          });
+
+          monacoEditor.onDidChangeModelContent(() => {
+            if (!currentFile || suppressDirtyTracking) return;
+            if (!isDirty) {
+              isDirty = true;
+              updateCurrentFileLabel();
+            }
+          });
+
+          monacoEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+            void saveBtn.onclick();
+          });
+
+          monacoReady = true;
+          resolve(true);
+        }, (err) => reject(err));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  try {
+    await monacoInitPromise;
+    return true;
+  } catch (err) {
+    setStatus(`Failed to initialize editor: ${err.message || err}`, true);
+    monacoInitPromise = null;
+    return false;
+  }
+}
+
+function getEditorValue() {
+  return monacoEditor ? monacoEditor.getValue() : '';
+}
+
+function setEditorValue(text) {
+  if (!monacoEditor) return;
+  suppressDirtyTracking = true;
+  monacoEditor.setValue(text || '');
+  suppressDirtyTracking = false;
+}
+
+function setEditorLanguageFromPath(filePath) {
+  if (!monacoEditor) return;
+  const model = monacoEditor.getModel();
+  if (!model) return;
+
+  const ext = (filePath.split('.').pop() || '').toLowerCase();
+  const map = {
+    js: 'javascript',
+    ts: 'typescript',
+    json: 'json',
+    sh: 'shell',
+    bash: 'shell',
+    zsh: 'shell',
+    yml: 'yaml',
+    yaml: 'yaml',
+    md: 'markdown',
+    py: 'python',
+    conf: 'ini',
+    ini: 'ini',
+    toml: 'ini',
+    xml: 'xml',
+    html: 'html',
+    css: 'css'
+  };
+
+  const language = map[ext] || 'plaintext';
+  monacoApi?.editor.setModelLanguage(model, language);
+}
+
+function updateEditorTheme() {
+  if (!monacoReady) return;
+  const theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'vs' : 'vs-dark';
+  monacoApi?.editor.setTheme(theme);
+}
+
+function focusEditorSoon() {
+  const tryFocus = () => {
+    document.body.classList.remove('resizing');
+    window.focus();
+    monacoEditor?.focus();
+  };
+
+  requestAnimationFrame(() => {
+    tryFocus();
+    setTimeout(tryFocus, 0);
+    setTimeout(tryFocus, 80);
+    setTimeout(tryFocus, 180);
+  });
 }
 
 function updateTerminalUI() {
@@ -166,6 +305,23 @@ async function confirmHostTrust(hostKey) {
   });
 }
 
+function hideDeleteProfileModal(confirmed) {
+  deleteProfileModal.classList.add('hidden');
+  const resolver = deleteProfileResolver;
+  deleteProfileResolver = null;
+  if (resolver) resolver(confirmed);
+}
+
+async function confirmDeleteProfile(profileName) {
+  deleteProfileMessage.textContent = `Delete profile \"${profileName}\"?`;
+  deleteProfileModal.classList.remove('hidden');
+  deleteProfileCancelBtn.focus();
+
+  return new Promise((resolve) => {
+    deleteProfileResolver = resolve;
+  });
+}
+
 function hideTerminalContextMenu() {
   terminalContextMenu.classList.add('hidden');
 }
@@ -200,7 +356,8 @@ function closeCurrentFile() {
   currentFile = '';
   isDirty = false;
   updateCurrentFileLabel();
-  editor.value = '';
+  setEditorValue('');
+  setEditorLanguageFromPath('');
   setStatus('Closed file');
 }
 
@@ -265,34 +422,18 @@ function joinPath(base, name) {
 }
 
 function showEditorView() {
-  editor.classList.remove('hidden');
+  editorHost.classList.remove('hidden');
   terminalPane.classList.add('hidden');
   editorTabBtn.classList.add('active');
   terminalTabBtn.classList.remove('active');
+  monacoEditor?.layout();
 }
 
 function showTerminalView() {
-  editor.classList.add('hidden');
+  editorHost.classList.add('hidden');
   terminalPane.classList.remove('hidden');
   terminalTabBtn.classList.add('active');
   editorTabBtn.classList.remove('active');
-}
-
-function focusEditorSoon() {
-  const tryFocus = () => {
-    document.body.classList.remove('resizing');
-    window.focus();
-    editor.disabled = false;
-    editor.readOnly = false;
-    editor.focus({ preventScroll: true });
-  };
-
-  requestAnimationFrame(() => {
-    tryFocus();
-    setTimeout(tryFocus, 0);
-    setTimeout(tryFocus, 80);
-    setTimeout(tryFocus, 180);
-  });
 }
 
 async function ensureXtermReady() {
@@ -443,6 +584,10 @@ async function loadDir(path) {
         return;
       }
 
+      if (!(await ensureMonacoReady())) {
+        return;
+      }
+
       if (!(await confirmDiscardUnsaved('open another file'))) {
         return;
       }
@@ -456,7 +601,8 @@ async function loadDir(path) {
       currentFile = fullPath;
       isDirty = false;
       updateCurrentFileLabel();
-      editor.value = fileRes.content || '';
+      setEditorValue(fileRes.content || '');
+      setEditorLanguageFromPath(fullPath);
       showEditorView();
       focusEditorSoon();
       setStatus(`Opened ${fullPath}`);
@@ -468,6 +614,12 @@ async function loadDir(path) {
   setStatus(`Loaded ${path}`);
 }
 
+function updateAuthModeUI() {
+  const useKey = !!useKeyAuthEl.checked;
+  keyAuthFieldsEl.classList.toggle('hidden', !useKey);
+  passEl.classList.toggle('hidden', useKey);
+}
+
 function applyProfile(profile) {
   if (!profile) return;
   profileNameEl.value = profile.name || '';
@@ -475,6 +627,11 @@ function applyProfile(profile) {
   portEl.value = String(profile.port || 22);
   userEl.value = profile.username || '';
   startPathEl.value = profile.startPath || '.';
+
+  // Credentials are intentionally not persisted in profiles.
+  passEl.value = '';
+  keyEl.value = '';
+  passphraseEl.value = '';
 }
 
 async function refreshProfiles() {
@@ -500,13 +657,14 @@ async function refreshProfiles() {
 }
 
 async function connectWithHostTrustRetry() {
+  const useKeyAuth = !!useKeyAuthEl.checked;
   const connectPayload = {
     host: hostEl.value.trim(),
     port: portEl.value.trim(),
     username: userEl.value.trim(),
-    password: passEl.value,
-    privateKey: keyEl.value,
-    passphrase: passphraseEl.value
+    password: useKeyAuth ? '' : passEl.value,
+    privateKey: useKeyAuth ? keyEl.value : '',
+    passphrase: useKeyAuth ? passphraseEl.value : ''
   };
 
   let res = await window.api.connect(connectPayload);
@@ -524,8 +682,8 @@ async function connectWithHostTrustRetry() {
     hostKey = pendingRes.hostKey;
   }
 
-  if (!hostKey) {
-    return { ok: false, error: 'Host key not trusted and no fingerprint found' };
+  if (!hostKey || !hostKey.host || !hostKey.port || !hostKey.fingerprint) {
+    return { ok: false, error: 'Host key details missing. Check host/username fields and try again.' };
   }
 
   const shouldTrust = await confirmHostTrust(hostKey);
@@ -543,6 +701,14 @@ async function connectWithHostTrustRetry() {
 }
 
 connectBtn.onclick = async () => {
+  const host = hostEl.value.trim();
+  const username = userEl.value.trim();
+
+  if (!host || !username) {
+    setStatus('Host and username are required (load/select a profile first)', true);
+    return;
+  }
+
   setStatus('Connecting...');
   const res = await connectWithHostTrustRetry();
 
@@ -586,7 +752,7 @@ saveBtn.onclick = async () => {
     return;
   }
 
-  const res = await window.api.writeFile(currentFile, editor.value);
+  const res = await window.api.writeFile(currentFile, getEditorValue());
   if (!res.ok) {
     setStatus(res.error || 'Save failed', true);
     return;
@@ -621,15 +787,16 @@ pickKeyBtn.onclick = async () => {
   setStatus(`Loaded key from ${res.filePath}`);
 };
 
-loadProfileBtn.onclick = async () => {
+profileSelectEl.onchange = () => {
   const selectedName = profileSelectEl.value;
   const profile = profiles.find((p) => p.name === selectedName);
-  if (!profile) {
-    setStatus('Select a profile first', true);
-    return;
-  }
+  if (!profile) return;
   applyProfile(profile);
-  setStatus(`Loaded profile ${selectedName}`);
+  setStatus('Profile loaded (password/private key are not stored in profiles)');
+};
+
+useKeyAuthEl.onchange = () => {
+  updateAuthModeUI();
 };
 
 saveProfileBtn.onclick = async () => {
@@ -656,7 +823,7 @@ deleteProfileBtn.onclick = async () => {
     setStatus('Choose a profile to delete', true);
     return;
   }
-  const confirmed = window.confirm(`Delete profile "${target}"?`);
+  const confirmed = await confirmDeleteProfile(target);
   if (!confirmed) {
     return;
   }
@@ -723,10 +890,18 @@ hostTrustModal.onclick = (event) => {
   }
 };
 
+deleteProfileModal.onclick = (event) => {
+  if (event.target === deleteProfileModal) {
+    hideDeleteProfileModal(false);
+  }
+};
+
 discardCancelBtn.onclick = () => hideDiscardModal(false);
 discardConfirmBtn.onclick = () => hideDiscardModal(true);
 hostTrustCancelBtn.onclick = () => hideHostTrustModal(false);
 hostTrustConfirmBtn.onclick = () => hideHostTrustModal(true);
+deleteProfileCancelBtn.onclick = () => hideDeleteProfileModal(false);
+deleteProfileConfirmBtn.onclick = () => hideDeleteProfileModal(true);
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
@@ -738,21 +913,18 @@ document.addEventListener('keydown', (event) => {
       hideHostTrustModal(false);
       return;
     }
+    if (!deleteProfileModal.classList.contains('hidden')) {
+      hideDeleteProfileModal(false);
+      return;
+    }
     closeSettings();
   }
 });
 
 themeSelect.onchange = () => {
   applyTheme(themeSelect.value);
+  updateEditorTheme();
 };
-
-editor.addEventListener('input', () => {
-  if (!currentFile) return;
-  if (!isDirty) {
-    isDirty = true;
-    updateCurrentFileLabel();
-  }
-});
 
 document.addEventListener('keydown', (event) => {
   const isSaveShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
@@ -768,7 +940,7 @@ window.addEventListener('beforeunload', (event) => {
 });
 
 window.addEventListener('focus', () => {
-  const inEditorView = !editor.classList.contains('hidden');
+  const inEditorView = !editorHost.classList.contains('hidden');
   if (currentFile && inEditorView) {
     focusEditorSoon();
   }
@@ -788,6 +960,8 @@ loadThemePreference();
 loadSidebarWidthPreference();
 setupSidebarResize();
 showEditorView();
+void ensureMonacoReady();
 updateCurrentFileLabel();
+updateAuthModeUI();
 updateTerminalUI();
 void refreshProfiles();

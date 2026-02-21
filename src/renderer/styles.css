@@ -68,37 +68,49 @@ header p {
   gap: 10px;
 }
 
+.conn-top-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(160px, 220px) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .conn-row {
   display: grid;
   gap: 8px;
   align-items: center;
+  margin-bottom: 8px;
 }
 
-.conn-row-profile {
-  grid-template-columns: minmax(220px, 2fr) auto auto auto minmax(200px, 1.6fr);
+.conn-row-basic {
+  grid-template-columns: minmax(220px, 1.5fr) minmax(140px, 1fr) minmax(220px, 1.5fr) auto auto auto;
 }
 
-.conn-row-credentials {
-  grid-template-columns: minmax(220px, 2fr) 90px minmax(160px, 1.5fr) minmax(260px, 2.2fr) auto minmax(220px, 2fr) minmax(170px, 1.2fr);
+.conn-row-options {
+  grid-template-columns: 1fr;
+}
+
+.inline-check {
+  color: var(--muted);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .conn-row-key {
-  grid-template-columns: minmax(320px, 1fr) auto;
+  grid-template-columns: auto minmax(220px, 1.1fr) 90px minmax(180px, 1fr);
 }
 
-.conn-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
+#privateKey {
+  grid-column: 1 / -1;
+  min-height: 72px;
 }
 
 .conn input,
 .conn textarea,
 .conn select,
 .path-row input,
-#editor,
-#terminalInput,
 #themeSelect {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -260,13 +272,12 @@ body.resizing {
   font-size: 14px;
 }
 
-#editor {
+#editorHost {
   border: 0;
   border-radius: 0 0 12px 12px;
-  resize: none;
   flex: 1;
-  font-family: 'Consolas', 'Courier New', monospace;
-  line-height: 1.4;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .terminal-pane {
@@ -394,32 +405,28 @@ body.resizing {
   margin-top: 6px;
 }
 
-@media (max-width: 1500px) {
-  .conn-row-profile {
-    grid-template-columns: minmax(220px, 1.8fr) auto auto auto minmax(180px, 1.2fr);
-  }
-
-  .conn-row-credentials {
-    grid-template-columns: minmax(200px, 1.6fr) 80px minmax(140px, 1fr) minmax(220px, 1.6fr) auto minmax(180px, 1.3fr) minmax(150px, 1fr);
-  }
-}
-
 @media (max-width: 1200px) {
-  .conn-row-profile,
-  .conn-row-credentials,
+  .conn-top-row {
+    grid-template-columns: 1fr auto auto;
+  }
+
+  #profileName {
+    grid-column: 1 / -1;
+  }
+
+  .conn-row-basic,
   .conn-row-key {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .conn-actions {
-    justify-content: flex-start;
-    flex-wrap: wrap;
+  #status {
+    grid-column: 1 / -1;
   }
 }
 
 @media (max-width: 960px) {
-  .conn-row-profile,
-  .conn-row-credentials,
+  .conn-top-row,
+  .conn-row-basic,
   .conn-row-key {
     grid-template-columns: 1fr;
   }
