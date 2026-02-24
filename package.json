@@ -55,5 +55,8 @@
       "allowElevation": true,
       "allowToChangeInstallationDirectory": true
     }
+  },
+  "optionalDependencies": {
+    "keytar": "^7.9.0"
   }
 }
