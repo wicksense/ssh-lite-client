@@ -21,6 +21,9 @@ const fileList = document.getElementById('fileList');
 const editorHost = document.getElementById('editorHost');
 const saveBtn = document.getElementById('saveBtn');
 const closeFileBtn = document.getElementById('closeFileBtn');
+const findBtn = document.getElementById('findBtn');
+const replaceBtn = document.getElementById('replaceBtn');
+const goToLineBtn = document.getElementById('goToLineBtn');
 const currentFileEl = document.getElementById('currentFile');
 const editorTabBtn = document.getElementById('editorTabBtn');
 const terminalTabBtn = document.getElementById('terminalTabBtn');
@@ -74,9 +77,12 @@ let suppressDirtyTracking = false;
 function updateCurrentFileLabel() {
   if (!currentFile) {
     currentFileEl.textContent = 'No file open';
+    document.title = 'SSH Lite Client';
     return;
   }
   currentFileEl.textContent = isDirty ? `${currentFile} *` : currentFile;
+  const fileName = currentFile.split('/').pop() || currentFile;
+  document.title = `${isDirty ? '* ' : ''}${fileName} - SSH Lite Client`;
 }
 
 async function ensureMonacoReady() {
@@ -190,6 +196,26 @@ function updateEditorTheme() {
   if (!monacoReady) return;
   const theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'vs' : 'vs-dark';
   monacoApi?.editor.setTheme(theme);
+}
+
+async function runEditorAction(kind) {
+  if (!(await ensureMonacoReady()) || !monacoEditor) return;
+  showEditorView();
+  monacoEditor.focus();
+
+  if (kind === 'find') {
+    monacoEditor.trigger('ui', 'actions.find', null);
+    return;
+  }
+
+  if (kind === 'replace') {
+    monacoEditor.trigger('ui', 'editor.action.startFindReplaceAction', null);
+    return;
+  }
+
+  if (kind === 'goto') {
+    monacoEditor.trigger('ui', 'editor.action.gotoLine', null);
+  }
 }
 
 function focusEditorSoon() {
@@ -772,6 +798,18 @@ closeFileBtn.onclick = async () => {
     return;
   }
   closeCurrentFile();
+};
+
+findBtn.onclick = () => {
+  void runEditorAction('find');
+};
+
+replaceBtn.onclick = () => {
+  void runEditorAction('replace');
+};
+
+goToLineBtn.onclick = () => {
+  void runEditorAction('goto');
 };
 
 pickKeyBtn.onclick = async () => {

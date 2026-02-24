@@ -257,6 +257,25 @@ body.resizing {
   gap: 8px;
 }
 
+.editor-tools {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.editor-tool-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.editor-shortcuts {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .view-tabs {
   display: flex;
   gap: 6px;
@@ -447,6 +466,10 @@ body.resizing {
   }
 
   .editor-top {
+    flex-wrap: wrap;
+  }
+
+  .editor-tools {
     flex-wrap: wrap;
   }
 }
