@@ -4,6 +4,7 @@ const fs = require('fs/promises');
 const { Client } = require('ssh2');
 
 let mainWindow;
+let keytarLib = null;
 let sshClient = null;
 let sftp = null;
 let shellStream = null;
@@ -12,6 +13,27 @@ let pendingHostKey = null;
 
 const profilesFile = () => path.join(app.getPath('userData'), 'profiles.json');
 const knownHostsFile = () => path.join(app.getPath('userData'), 'known-hosts.json');
+const credentialService = 'ssh-lite-client';
+
+function getKeytar() {
+  if (keytarLib !== null) {
+    return keytarLib;
+  }
+
+  try {
+    // optional dependency
+    // eslint-disable-next-line global-require, import/no-extraneous-dependencies
+    keytarLib = require('keytar');
+  } catch (_err) {
+    keytarLib = undefined;
+  }
+
+  return keytarLib;
+}
+
+function profileCredentialAccount(profile) {
+  return `${profile.name}|${profile.host}|${profile.username}`;
+}
 
 async function readJsonFile(filePath, fallbackValue) {
   try {
@@ -272,9 +294,81 @@ ipcMain.handle('profiles:save', async (_event, profile) => {
 ipcMain.handle('profiles:delete', async (_event, profileName) => {
   const value = await readJsonFile(profilesFile(), { profiles: [] });
   const profiles = Array.isArray(value.profiles) ? value.profiles : [];
+  const target = profiles.find((p) => p.name === profileName);
   const next = profiles.filter((p) => p.name !== profileName);
   await writeJsonFile(profilesFile(), { profiles: next });
+
+  if (target) {
+    const keytar = getKeytar();
+    if (keytar) {
+      try {
+        await keytar.deletePassword(credentialService, profileCredentialAccount(target));
+      } catch (_err) {
+        // ignore keychain delete errors
+      }
+    }
+  }
+
   return { ok: true, profiles: next };
+});
+
+ipcMain.handle('profiles:getSecret', async (_event, profile) => {
+  if (!profile || !profile.name || !profile.host || !profile.username) {
+    return { ok: false, error: 'Invalid profile for secret lookup' };
+  }
+
+  const keytar = getKeytar();
+  if (!keytar) {
+    return { ok: false, error: 'Secure credential storage unavailable on this system' };
+  }
+
+  try {
+    const raw = await keytar.getPassword(credentialService, profileCredentialAccount(profile));
+    if (!raw) {
+      return { ok: true, found: false };
+    }
+
+    const secret = JSON.parse(raw);
+    return { ok: true, found: true, secret };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('profiles:saveSecret', async (_event, profile, secret) => {
+  if (!profile || !profile.name || !profile.host || !profile.username) {
+    return { ok: false, error: 'Invalid profile for secret save' };
+  }
+
+  const keytar = getKeytar();
+  if (!keytar) {
+    return { ok: false, error: 'Secure credential storage unavailable on this system' };
+  }
+
+  try {
+    await keytar.setPassword(credentialService, profileCredentialAccount(profile), JSON.stringify(secret || {}));
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('profiles:deleteSecret', async (_event, profile) => {
+  if (!profile || !profile.name || !profile.host || !profile.username) {
+    return { ok: false, error: 'Invalid profile for secret delete' };
+  }
+
+  const keytar = getKeytar();
+  if (!keytar) {
+    return { ok: false, error: 'Secure credential storage unavailable on this system' };
+  }
+
+  try {
+    await keytar.deletePassword(credentialService, profileCredentialAccount(profile));
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 });
 
 ipcMain.handle('ssh:pickPrivateKey', async () => {

@@ -9,6 +9,7 @@ const startPathEl = document.getElementById('startPath');
 const profileSelectEl = document.getElementById('profileSelect');
 const profileNameEl = document.getElementById('profileName');
 const useKeyAuthEl = document.getElementById('useKeyAuth');
+const rememberCredsEl = document.getElementById('rememberCreds');
 const keyAuthFieldsEl = document.getElementById('keyAuthFields');
 const saveProfileBtn = document.getElementById('saveProfileBtn');
 const deleteProfileBtn = document.getElementById('deleteProfileBtn');
@@ -654,10 +655,49 @@ function applyProfile(profile) {
   userEl.value = profile.username || '';
   startPathEl.value = profile.startPath || '.';
 
-  // Credentials are intentionally not persisted in profiles.
   passEl.value = '';
   keyEl.value = '';
   passphraseEl.value = '';
+  useKeyAuthEl.checked = false;
+  rememberCredsEl.checked = false;
+  updateAuthModeUI();
+}
+
+async function loadProfileSecret(profile) {
+  const res = await window.api.getProfileSecret(profile);
+  if (!res.ok) {
+    // keychain may be unavailable; keep manual auth fallback
+    return;
+  }
+
+  if (!res.found || !res.secret) {
+    return;
+  }
+
+  const secret = res.secret;
+  rememberCredsEl.checked = true;
+  useKeyAuthEl.checked = !!secret.useKeyAuth;
+  passEl.value = secret.password || '';
+  keyEl.value = secret.privateKey || '';
+  passphraseEl.value = secret.passphrase || '';
+  updateAuthModeUI();
+}
+
+async function syncProfileSecret(profile) {
+  if (!profile || !profile.name || !profile.host || !profile.username) {
+    return { ok: false, error: 'Profile needs name, host, and username for credential storage' };
+  }
+
+  if (rememberCredsEl.checked) {
+    return window.api.saveProfileSecret(profile, {
+      useKeyAuth: !!useKeyAuthEl.checked,
+      password: passEl.value || '',
+      privateKey: keyEl.value || '',
+      passphrase: passphraseEl.value || ''
+    });
+  }
+
+  return window.api.deleteProfileSecret(profile);
 }
 
 async function refreshProfiles() {
@@ -825,12 +865,13 @@ pickKeyBtn.onclick = async () => {
   setStatus(`Loaded key from ${res.filePath}`);
 };
 
-profileSelectEl.onchange = () => {
+profileSelectEl.onchange = async () => {
   const selectedName = profileSelectEl.value;
   const profile = profiles.find((p) => p.name === selectedName);
   if (!profile) return;
   applyProfile(profile);
-  setStatus('Profile loaded (password/private key are not stored in profiles)');
+  await loadProfileSecret(profile);
+  setStatus(`Profile loaded ${rememberCredsEl.checked ? 'with saved credentials' : '(credentials not saved)'}`);
 };
 
 useKeyAuthEl.onchange = () => {
@@ -850,9 +891,20 @@ saveProfileBtn.onclick = async () => {
     setStatus(res.error || 'Failed to save profile', true);
     return;
   }
+
+  const secretRes = await syncProfileSecret(payload);
   await refreshProfiles();
   profileSelectEl.value = payload.name;
-  setStatus(`Saved profile ${payload.name}`);
+
+  if (secretRes?.ok) {
+    setStatus(`Saved profile ${payload.name}${rememberCredsEl.checked ? ' + secure credentials' : ''}`);
+    return;
+  }
+
+  setStatus(
+    `Saved profile ${payload.name}, but secure credential storage is unavailable${secretRes?.error ? ` (${secretRes.error})` : ''}`,
+    true
+  );
 };
 
 deleteProfileBtn.onclick = async () => {
@@ -871,6 +923,7 @@ deleteProfileBtn.onclick = async () => {
     return;
   }
   await refreshProfiles();
+  rememberCredsEl.checked = false;
   setStatus(`Deleted profile ${target}`);
 };
 
