@@ -70,7 +70,7 @@ header p {
 
 .conn-top-row {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(160px, 220px) auto auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) minmax(220px, 1fr) auto auto;
   gap: 8px;
   align-items: center;
 }
@@ -87,7 +87,7 @@ header p {
 }
 
 .conn-row-options {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .inline-check {
@@ -96,6 +96,10 @@ header p {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.inline-check-top {
+  justify-self: start;
 }
 
 .conn-row-key {
@@ -429,13 +433,13 @@ body.resizing {
     grid-template-columns: 1fr auto auto;
   }
 
-  #profileName {
+  #profileName,
+  .inline-check-top {
     grid-column: 1 / -1;
   }
 
   .conn-row-basic,
-  .conn-row-key,
-  .conn-row-options {
+  .conn-row-key {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
