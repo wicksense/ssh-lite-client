@@ -112,13 +112,24 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 }
 
-function toEntry(item) {
+function toEntry(item, typeOverride = null) {
+  const attrs = item.attrs || {};
+  const inferredType =
+    typeOverride ||
+    (typeof attrs.isDirectory === 'function' && attrs.isDirectory()
+      ? 'directory'
+      : item.longname?.startsWith('d')
+        ? 'directory'
+        : item.longname?.startsWith('l')
+          ? 'symlink'
+          : 'file');
+
   return {
     name: item.filename,
     longname: item.longname,
-    type: item.longname.startsWith('d') ? 'directory' : 'file',
-    size: item.attrs.size,
-    mtime: item.attrs.mtime
+    type: inferredType,
+    size: attrs.size,
+    mtime: attrs.mtime
   };
 }
 
@@ -457,17 +468,41 @@ ipcMain.handle('sftp:list', async (_event, remotePath) => {
   }
 
   return new Promise((resolve) => {
-    sftp.readdir(remotePath, (err, list) => {
+    sftp.readdir(remotePath, async (err, list) => {
       if (err) {
         resolve({ ok: false, error: err.message });
         return;
       }
-      const entries = list.map(toEntry).sort((a, b) => {
+
+      const entries = await Promise.all(
+        list.map(
+          (item) =>
+            new Promise((entryResolve) => {
+              if (!item.longname?.startsWith('l')) {
+                entryResolve(toEntry(item));
+                return;
+              }
+
+              const targetPath = path.posix.join(remotePath || '.', item.filename);
+              sftp.stat(targetPath, (statErr, stats) => {
+                if (!statErr && typeof stats?.isDirectory === 'function' && stats.isDirectory()) {
+                  entryResolve(toEntry(item, 'directory'));
+                  return;
+                }
+
+                entryResolve(toEntry(item));
+              });
+            })
+        )
+      );
+
+      entries.sort((a, b) => {
         if (a.type !== b.type) {
           return a.type === 'directory' ? -1 : 1;
         }
         return a.name.localeCompare(b.name);
       });
+
       resolve({ ok: true, entries });
     });
   });
