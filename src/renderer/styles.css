@@ -218,6 +218,14 @@ body.resizing {
   border-bottom: 1px solid var(--border);
 }
 
+.transfer-row {
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
 #fileList {
   list-style: none;
   margin: 0;
@@ -236,6 +244,11 @@ body.resizing {
 
 #fileList li:hover {
   background: var(--hover);
+}
+
+#fileList li.selected {
+  background: color-mix(in oklab, var(--accent) 24%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 70%, var(--border));
 }
 
 #fileList li.dir::before {

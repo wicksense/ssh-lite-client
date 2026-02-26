@@ -18,6 +18,8 @@ const disconnectBtn = document.getElementById('disconnectBtn');
 const statusEl = document.getElementById('status');
 const pathInput = document.getElementById('pathInput');
 const loadBtn = document.getElementById('loadBtn');
+const uploadBtn = document.getElementById('uploadBtn');
+const downloadBtn = document.getElementById('downloadBtn');
 const fileList = document.getElementById('fileList');
 const editorHost = document.getElementById('editorHost');
 const saveBtn = document.getElementById('saveBtn');
@@ -58,6 +60,7 @@ const deleteProfileConfirmBtn = document.getElementById('deleteProfileConfirmBtn
 
 let currentPath = '.';
 let currentFile = '';
+let selectedRemoteFile = '';
 let profiles = [];
 let terminalStarted = false;
 let terminalStarting = false;
@@ -381,6 +384,8 @@ function closeSettings() {
 
 function closeCurrentFile() {
   currentFile = '';
+  selectedRemoteFile = '';
+  clearFileSelection();
   isDirty = false;
   updateCurrentFileLabel();
   setEditorValue('');
@@ -580,6 +585,10 @@ function appendTerminalOutput(text) {
   term.write(text);
 }
 
+function clearFileSelection() {
+  fileList.querySelectorAll('li.selected').forEach((li) => li.classList.remove('selected'));
+}
+
 async function loadDir(path) {
   const res = await window.api.listDir(path);
   if (!res.ok) {
@@ -588,6 +597,7 @@ async function loadDir(path) {
   }
 
   currentPath = path;
+  selectedRemoteFile = '';
   pathInput.value = path;
   fileList.innerHTML = '';
 
@@ -606,6 +616,9 @@ async function loadDir(path) {
 
     li.onclick = async () => {
       const fullPath = joinPath(path, entry.name);
+      clearFileSelection();
+      li.classList.add('selected');
+
       if (entry.type === 'directory') {
         await loadDir(fullPath);
         return;
@@ -618,6 +631,8 @@ async function loadDir(path) {
       if (!(await confirmDiscardUnsaved('open another file'))) {
         return;
       }
+
+      selectedRemoteFile = fullPath;
 
       const fileRes = await window.api.readFile(fullPath);
       if (!fileRes.ok) {
@@ -804,12 +819,44 @@ disconnectBtn.onclick = async () => {
   updateTerminalUI();
   setStatus('Disconnected');
   fileList.innerHTML = '';
+  selectedRemoteFile = '';
   closeCurrentFile();
   term?.clear();
 };
 
 loadBtn.onclick = async () => {
   await loadDir(pathInput.value.trim() || '.');
+};
+
+uploadBtn.onclick = async () => {
+  const res = await window.api.uploadTo(currentPath || pathInput.value.trim() || '.');
+  if (!res.ok) {
+    if (!res.canceled) {
+      setStatus(res.error || 'Upload failed', true);
+    }
+    return;
+  }
+
+  await loadDir(currentPath || '.');
+  setStatus(`Uploaded ${res.localPath.split('/').pop()} to ${res.remotePath}`);
+};
+
+downloadBtn.onclick = async () => {
+  const target = currentFile || selectedRemoteFile;
+  if (!target) {
+    setStatus('Select/open a file to download', true);
+    return;
+  }
+
+  const res = await window.api.downloadFrom(target);
+  if (!res.ok) {
+    if (!res.canceled) {
+      setStatus(res.error || 'Download failed', true);
+    }
+    return;
+  }
+
+  setStatus(`Downloaded to ${res.localPath}`);
 };
 
 saveBtn.onclick = async () => {
