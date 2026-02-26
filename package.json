@@ -3,7 +3,10 @@
   "version": "0.2.0",
   "private": false,
   "description": "Lightweight SSH/SFTP editor for remote Linux hosts",
-  "author": "wicksense",
+  "author": {
+    "name": "wicksense",
+    "email": "wicksense@users.noreply.github.com"
+  },
   "license": "MIT",
   "main": "src/main.js",
   "scripts": {
@@ -58,6 +61,7 @@
       "allowToChangeInstallationDirectory": true
     },
     "linux": {
+      "maintainer": "wicksense <wicksense@users.noreply.github.com>",
       "target": [
         {
           "target": "AppImage",
