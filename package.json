@@ -10,6 +10,8 @@
     "start": "electron .",
     "dev": "electron .",
     "package:win": "electron-builder --win nsis --publish=never",
+    "package:linux": "electron-builder --linux AppImage deb --publish=never",
+    "package:mac": "electron-builder --mac dmg zip --publish=never",
     "package:dir": "electron-builder --dir",
     "package:all": "electron-builder"
   },
@@ -54,6 +56,44 @@
       "oneClick": false,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "identity": null,
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   },
   "optionalDependencies": {
