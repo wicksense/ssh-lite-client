@@ -665,6 +665,114 @@ ipcMain.handle('sftp:downloadManyFrom', async (_event, remotePaths) => {
   };
 });
 
+function sftpStat(remotePath) {
+  return new Promise((resolve, reject) => {
+    sftp.stat(remotePath, (err, stats) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(stats);
+    });
+  });
+}
+
+function sftpReadDir(remotePath) {
+  return new Promise((resolve, reject) => {
+    sftp.readdir(remotePath, (err, list) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(list || []);
+    });
+  });
+}
+
+function sftpUnlink(remotePath) {
+  return new Promise((resolve, reject) => {
+    sftp.unlink(remotePath, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function sftpRmdir(remotePath) {
+  return new Promise((resolve, reject) => {
+    sftp.rmdir(remotePath, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function deleteRemotePath(remotePath) {
+  const stats = await sftpStat(remotePath);
+  if (!stats?.isDirectory?.()) {
+    await sftpUnlink(remotePath);
+    return;
+  }
+
+  const children = await sftpReadDir(remotePath);
+  for (const child of children) {
+    const childPath = path.posix.join(remotePath, child.filename);
+    // eslint-disable-next-line no-await-in-loop
+    await deleteRemotePath(childPath);
+  }
+
+  await sftpRmdir(remotePath);
+}
+
+ipcMain.handle('sftp:renamePath', async (_event, fromPath, toPath) => {
+  if (!connected || !sftp) {
+    return { ok: false, error: 'Not connected' };
+  }
+
+  if (!fromPath || !toPath) {
+    return { ok: false, error: 'Both source and destination paths are required' };
+  }
+
+  return new Promise((resolve) => {
+    sftp.rename(fromPath, toPath, (err) => {
+      if (err) {
+        resolve({ ok: false, error: err.message });
+        return;
+      }
+      resolve({ ok: true, fromPath, toPath });
+    });
+  });
+});
+
+ipcMain.handle('sftp:deletePaths', async (_event, paths) => {
+  if (!connected || !sftp) {
+    return { ok: false, error: 'Not connected' };
+  }
+
+  if (!Array.isArray(paths) || paths.length === 0) {
+    return { ok: false, error: 'No paths provided for deletion' };
+  }
+
+  const deleted = [];
+  for (const remotePath of paths) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await deleteRemotePath(remotePath);
+      deleted.push(remotePath);
+    } catch (err) {
+      return { ok: false, error: `Failed deleting ${remotePath}: ${err.message}`, deleted };
+    }
+  }
+
+  return { ok: true, deleted, count: deleted.length };
+});
+
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {

@@ -20,6 +20,8 @@ const pathInput = document.getElementById('pathInput');
 const loadBtn = document.getElementById('loadBtn');
 const uploadBtn = document.getElementById('uploadBtn');
 const downloadBtn = document.getElementById('downloadBtn');
+const renameBtn = document.getElementById('renameBtn');
+const deleteBtn = document.getElementById('deleteBtn');
 const fileList = document.getElementById('fileList');
 const editorHost = document.getElementById('editorHost');
 const saveBtn = document.getElementById('saveBtn');
@@ -57,6 +59,15 @@ const deleteProfileModal = document.getElementById('deleteProfileModal');
 const deleteProfileMessage = document.getElementById('deleteProfileMessage');
 const deleteProfileCancelBtn = document.getElementById('deleteProfileCancelBtn');
 const deleteProfileConfirmBtn = document.getElementById('deleteProfileConfirmBtn');
+const renameRemoteModal = document.getElementById('renameRemoteModal');
+const renameRemoteMessage = document.getElementById('renameRemoteMessage');
+const renameRemoteInput = document.getElementById('renameRemoteInput');
+const renameRemoteCancelBtn = document.getElementById('renameRemoteCancelBtn');
+const renameRemoteConfirmBtn = document.getElementById('renameRemoteConfirmBtn');
+const deleteRemoteModal = document.getElementById('deleteRemoteModal');
+const deleteRemoteMessage = document.getElementById('deleteRemoteMessage');
+const deleteRemoteCancelBtn = document.getElementById('deleteRemoteCancelBtn');
+const deleteRemoteConfirmBtn = document.getElementById('deleteRemoteConfirmBtn');
 
 let currentPath = '.';
 let currentFile = '';
@@ -72,6 +83,8 @@ let isDirty = false;
 let discardResolver = null;
 let hostTrustResolver = null;
 let deleteProfileResolver = null;
+let renameRemoteResolver = null;
+let deleteRemoteResolver = null;
 let term = null;
 let fitAddon = null;
 let xtermReady = false;
@@ -352,6 +365,53 @@ async function confirmDeleteProfile(profileName) {
 
   return new Promise((resolve) => {
     deleteProfileResolver = resolve;
+  });
+}
+
+function basename(remotePath) {
+  return remotePath.split('/').pop() || remotePath;
+}
+
+function hideRenameRemoteModal(result = null) {
+  renameRemoteModal.classList.add('hidden');
+  const resolver = renameRemoteResolver;
+  renameRemoteResolver = null;
+  if (resolver) resolver(result);
+}
+
+async function promptRenameRemote(remotePath) {
+  renameRemoteMessage.textContent = `Rename \"${basename(remotePath)}\" to:`;
+  renameRemoteInput.value = basename(remotePath);
+  renameRemoteModal.classList.remove('hidden');
+  renameRemoteInput.focus();
+  renameRemoteInput.select();
+
+  return new Promise((resolve) => {
+    renameRemoteResolver = resolve;
+  });
+}
+
+function hideDeleteRemoteModal(confirmed) {
+  deleteRemoteModal.classList.add('hidden');
+  const resolver = deleteRemoteResolver;
+  deleteRemoteResolver = null;
+  if (resolver) resolver(confirmed);
+}
+
+async function confirmDeleteRemote(paths) {
+  if (!Array.isArray(paths) || paths.length === 0) return false;
+
+  if (paths.length === 1) {
+    deleteRemoteMessage.textContent = `Delete \"${basename(paths[0])}\"? This cannot be undone.`;
+  } else {
+    deleteRemoteMessage.textContent = `Delete ${paths.length} selected items? This cannot be undone.`;
+  }
+
+  deleteRemoteModal.classList.remove('hidden');
+  deleteRemoteCancelBtn.focus();
+
+  return new Promise((resolve) => {
+    deleteRemoteResolver = resolve;
   });
 }
 
@@ -928,6 +988,84 @@ downloadBtn.onclick = async () => {
   setStatus(`Downloaded to ${res.localPath}`);
 };
 
+renameBtn.onclick = async () => {
+  const selectedList = [...selectedRemoteFiles];
+  const target = selectedList.length === 1 ? selectedList[0] : currentFile || selectedRemoteFile;
+
+  if (!target) {
+    setStatus('Select/open exactly one file to rename', true);
+    return;
+  }
+
+  if (selectedList.length > 1) {
+    setStatus('Rename supports one item at a time', true);
+    return;
+  }
+
+  const newName = await promptRenameRemote(target);
+  if (!newName) {
+    return;
+  }
+
+  const trimmed = newName.trim();
+  if (!trimmed || trimmed.includes('/')) {
+    setStatus('Invalid name. Use a file/folder name without slashes.', true);
+    return;
+  }
+
+  const nextPath = joinPath(parentPath(target), trimmed);
+  if (nextPath === target) {
+    setStatus('Name unchanged');
+    return;
+  }
+
+  const res = await window.api.renamePath(target, nextPath);
+  if (!res.ok) {
+    setStatus(res.error || 'Rename failed', true);
+    return;
+  }
+
+  if (currentFile === target) {
+    currentFile = nextPath;
+    updateCurrentFileLabel();
+  }
+
+  selectedRemoteFile = nextPath;
+  selectedRemoteFiles = new Set([nextPath]);
+  await loadDir(currentPath || '.');
+  setStatus(`Renamed to ${trimmed}`);
+};
+
+deleteBtn.onclick = async () => {
+  const selectedList = [...selectedRemoteFiles];
+  const targets = selectedList.length > 0 ? selectedList : currentFile ? [currentFile] : selectedRemoteFile ? [selectedRemoteFile] : [];
+
+  if (targets.length === 0) {
+    setStatus('Select/open file(s) to delete', true);
+    return;
+  }
+
+  const confirmed = await confirmDeleteRemote(targets);
+  if (!confirmed) {
+    return;
+  }
+
+  const res = await window.api.deletePaths(targets);
+  if (!res.ok) {
+    setStatus(res.error || 'Delete failed', true);
+    return;
+  }
+
+  if (currentFile && targets.includes(currentFile)) {
+    closeCurrentFile();
+  }
+
+  selectedRemoteFile = '';
+  selectedRemoteFiles = new Set();
+  await loadDir(currentPath || '.');
+  setStatus(`Deleted ${res.count} item(s)`);
+};
+
 saveBtn.onclick = async () => {
   if (!currentFile) {
     setStatus('No file selected', true);
@@ -1103,12 +1241,34 @@ deleteProfileModal.onclick = (event) => {
   }
 };
 
+renameRemoteModal.onclick = (event) => {
+  if (event.target === renameRemoteModal) {
+    hideRenameRemoteModal(null);
+  }
+};
+
+deleteRemoteModal.onclick = (event) => {
+  if (event.target === deleteRemoteModal) {
+    hideDeleteRemoteModal(false);
+  }
+};
+
 discardCancelBtn.onclick = () => hideDiscardModal(false);
 discardConfirmBtn.onclick = () => hideDiscardModal(true);
 hostTrustCancelBtn.onclick = () => hideHostTrustModal(false);
 hostTrustConfirmBtn.onclick = () => hideHostTrustModal(true);
 deleteProfileCancelBtn.onclick = () => hideDeleteProfileModal(false);
 deleteProfileConfirmBtn.onclick = () => hideDeleteProfileModal(true);
+renameRemoteCancelBtn.onclick = () => hideRenameRemoteModal(null);
+renameRemoteConfirmBtn.onclick = () => hideRenameRemoteModal(renameRemoteInput.value || '');
+deleteRemoteCancelBtn.onclick = () => hideDeleteRemoteModal(false);
+deleteRemoteConfirmBtn.onclick = () => hideDeleteRemoteModal(true);
+renameRemoteInput.onkeydown = (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    hideRenameRemoteModal(renameRemoteInput.value || '');
+  }
+};
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
@@ -1122,6 +1282,14 @@ document.addEventListener('keydown', (event) => {
     }
     if (!deleteProfileModal.classList.contains('hidden')) {
       hideDeleteProfileModal(false);
+      return;
+    }
+    if (!renameRemoteModal.classList.contains('hidden')) {
+      hideRenameRemoteModal(null);
+      return;
+    }
+    if (!deleteRemoteModal.classList.contains('hidden')) {
+      hideDeleteRemoteModal(false);
       return;
     }
     closeSettings();
