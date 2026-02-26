@@ -1,6 +1,6 @@
 # SSH Lite Client
 
-Windows-first desktop app for quickly editing config files and scripts on remote Linux machines over SSH/SFTP.
+Desktop app for quickly editing config files and scripts on remote Linux machines over SSH/SFTP.
 
 ![SSH Lite Client main window (dark mode)](docs/images/app-main-dark.png)
 
@@ -21,13 +21,14 @@ SSH Lite Client is built for that quick-fix workflow:
 - open/edit/save in one lightweight app
 - optional terminal when needed
 
-## Install (Windows)
+## Install
 
 1. Go to the project’s **Releases** page on GitHub.
-2. Download the latest installer:
-   - `SSH Lite Client-<version>-Setup-x64.exe`
-3. Run the installer.
-4. Open **SSH Lite Client** from Start Menu/Desktop.
+2. Download the asset for your OS:
+   - **Windows**: `SSH Lite Client-<version>-Setup-x64.exe`
+   - **Linux**: `SSH Lite Client-<version>-x64.AppImage` (or `.deb`)
+   - **macOS**: `SSH Lite Client-<version>-<arch>.dmg` (or `.zip`)
+3. Run/install it for your platform.
 
 ## First-time use
 
@@ -48,9 +49,11 @@ SSH Lite Client is built for that quick-fix workflow:
 - Private key file picker
 - Host key trust confirmation + saved trusted fingerprints
 - Saved connection profiles (name, host, port, username, start path)
+- Optional secure credential storage in OS keychain (when available)
 - Remote directory browsing (SFTP)
+- Upload/download file transfers
 - Open/edit/save remote files
-- Built-in terminal pane
+- Built-in interactive terminal pane (xterm.js)
 - Dark mode by default, with switchable theme in Settings
 - Resizable file explorer pane
 - Help → About menu
@@ -63,11 +66,6 @@ SSH Lite Client is built with **Electron + Node.js + ssh2**.
 - **Node.js main process**: manages SSH/SFTP sessions, profile storage, and app-level operations.
 - **ssh2**: handles SSH shell + SFTP in one mature library.
 - **Vanilla HTML/CSS/JS renderer**: keeps the app lightweight and easy to evolve.
-
-### Terminal note
-
-Current terminal output is normalized to plain text for readability (control/ANSI noise is stripped in this version).
-A full interactive terminal emulator (xterm.js) is planned for a later pipeline step.
 
 ## Notes
 
