@@ -61,6 +61,9 @@ const deleteProfileConfirmBtn = document.getElementById('deleteProfileConfirmBtn
 let currentPath = '.';
 let currentFile = '';
 let selectedRemoteFile = '';
+let selectedRemoteFiles = new Set();
+let listedEntries = [];
+let lastSelectedFileIndex = -1;
 let profiles = [];
 let terminalStarted = false;
 let terminalStarting = false;
@@ -586,7 +589,17 @@ function appendTerminalOutput(text) {
 }
 
 function clearFileSelection() {
+  selectedRemoteFiles = new Set();
+  lastSelectedFileIndex = -1;
   fileList.querySelectorAll('li.selected').forEach((li) => li.classList.remove('selected'));
+}
+
+function refreshFileSelectionUI() {
+  fileList.querySelectorAll('li[data-path]').forEach((li) => {
+    const remotePath = li.getAttribute('data-path');
+    if (!remotePath) return;
+    li.classList.toggle('selected', selectedRemoteFiles.has(remotePath));
+  });
 }
 
 async function loadDir(path) {
@@ -598,6 +611,9 @@ async function loadDir(path) {
 
   currentPath = path;
   selectedRemoteFile = '';
+  selectedRemoteFiles = new Set();
+  listedEntries = res.entries || [];
+  lastSelectedFileIndex = -1;
   pathInput.value = path;
   fileList.innerHTML = '';
 
@@ -609,20 +625,60 @@ async function loadDir(path) {
     fileList.appendChild(up);
   }
 
-  for (const entry of res.entries) {
+  for (let index = 0; index < listedEntries.length; index += 1) {
+    const entry = listedEntries[index];
     const li = document.createElement('li');
     li.textContent = entry.name;
     li.className = entry.type === 'directory' ? 'dir' : 'file';
 
-    li.onclick = async () => {
-      const fullPath = joinPath(path, entry.name);
-      clearFileSelection();
-      li.classList.add('selected');
+    const fullPath = joinPath(path, entry.name);
+    li.setAttribute('data-path', fullPath);
+    li.setAttribute('data-entry-type', entry.type);
 
+    li.onclick = async (event) => {
       if (entry.type === 'directory') {
         await loadDir(fullPath);
         return;
       }
+
+      const isToggleSelect = !!(event.metaKey || event.ctrlKey);
+      const isRangeSelect = !!event.shiftKey;
+
+      if (isRangeSelect && lastSelectedFileIndex >= 0) {
+        const [start, end] = [lastSelectedFileIndex, index].sort((a, b) => a - b);
+        for (let i = start; i <= end; i += 1) {
+          const rangeEntry = listedEntries[i];
+          if (rangeEntry?.type !== 'directory') {
+            selectedRemoteFiles.add(joinPath(path, rangeEntry.name));
+          }
+        }
+        selectedRemoteFile = fullPath;
+        refreshFileSelectionUI();
+        setStatus(`Selected ${selectedRemoteFiles.size} file(s)`);
+        return;
+      }
+
+      if (isToggleSelect) {
+        if (selectedRemoteFiles.has(fullPath)) {
+          selectedRemoteFiles.delete(fullPath);
+        } else {
+          selectedRemoteFiles.add(fullPath);
+          lastSelectedFileIndex = index;
+          selectedRemoteFile = fullPath;
+        }
+        if (selectedRemoteFiles.size === 0) {
+          selectedRemoteFile = '';
+          lastSelectedFileIndex = -1;
+        }
+        refreshFileSelectionUI();
+        setStatus(`Selected ${selectedRemoteFiles.size} file(s)`);
+        return;
+      }
+
+      selectedRemoteFiles = new Set([fullPath]);
+      selectedRemoteFile = fullPath;
+      lastSelectedFileIndex = index;
+      refreshFileSelectionUI();
 
       if (!(await ensureMonacoReady())) {
         return;
@@ -631,8 +687,6 @@ async function loadDir(path) {
       if (!(await confirmDiscardUnsaved('open another file'))) {
         return;
       }
-
-      selectedRemoteFile = fullPath;
 
       const fileRes = await window.api.readFile(fullPath);
       if (!fileRes.ok) {
@@ -842,7 +896,22 @@ uploadBtn.onclick = async () => {
 };
 
 downloadBtn.onclick = async () => {
-  const target = currentFile || selectedRemoteFile;
+  const selectedList = [...selectedRemoteFiles];
+
+  if (selectedList.length > 1) {
+    const res = await window.api.downloadManyFrom(selectedList);
+    if (!res.ok) {
+      if (!res.canceled) {
+        setStatus(res.error || 'Multi-file download failed', true);
+      }
+      return;
+    }
+
+    setStatus(`Downloaded ${res.count} files to ${res.targetDir}`);
+    return;
+  }
+
+  const target = selectedList[0] || currentFile || selectedRemoteFile;
   if (!target) {
     setStatus('Select/open a file to download', true);
     return;

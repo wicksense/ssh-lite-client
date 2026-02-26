@@ -25,5 +25,6 @@ contextBridge.exposeInMainWorld('api', {
   readFile: (remotePath) => ipcRenderer.invoke('sftp:readFile', remotePath),
   writeFile: (remotePath, content) => ipcRenderer.invoke('sftp:writeFile', remotePath, content),
   uploadTo: (remoteDir) => ipcRenderer.invoke('sftp:uploadTo', remoteDir),
-  downloadFrom: (remotePath) => ipcRenderer.invoke('sftp:downloadFrom', remotePath)
+  downloadFrom: (remotePath) => ipcRenderer.invoke('sftp:downloadFrom', remotePath),
+  downloadManyFrom: (remotePaths) => ipcRenderer.invoke('sftp:downloadManyFrom', remotePaths)
 });
