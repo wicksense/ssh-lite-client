@@ -590,6 +590,81 @@ ipcMain.handle('sftp:downloadFrom', async (_event, remotePath) => {
   });
 });
 
+ipcMain.handle('sftp:downloadManyFrom', async (_event, remotePaths) => {
+  if (!connected || !sftp) {
+    return { ok: false, error: 'Not connected' };
+  }
+
+  if (!Array.isArray(remotePaths) || remotePaths.length === 0) {
+    return { ok: false, error: 'No files selected for download' };
+  }
+
+  const folderPick = await dialog.showOpenDialog({
+    title: 'Select local folder for downloaded files',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (folderPick.canceled || folderPick.filePaths.length === 0) {
+    return { ok: false, canceled: true };
+  }
+
+  const targetDir = folderPick.filePaths[0];
+
+  const uniqueLocalPath = async (baseName) => {
+    const ext = path.extname(baseName);
+    const stem = path.basename(baseName, ext);
+    let candidate = path.join(targetDir, baseName);
+    let i = 1;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      try {
+        await fs.access(candidate);
+        candidate = path.join(targetDir, `${stem} (${i})${ext}`);
+        i += 1;
+      } catch (_err) {
+        return candidate;
+      }
+    }
+  };
+
+  const downloaded = [];
+
+  for (const remotePath of remotePaths) {
+    const fileName = path.basename(remotePath || 'download.txt');
+    const localPath = await uniqueLocalPath(fileName);
+
+    // eslint-disable-next-line no-await-in-loop
+    const outcome = await new Promise((resolve) => {
+      sftp.fastGet(remotePath, localPath, (err) => {
+        if (err) {
+          resolve({ ok: false, error: err.message });
+          return;
+        }
+        resolve({ ok: true });
+      });
+    });
+
+    if (!outcome.ok) {
+      return {
+        ok: false,
+        error: `Failed downloading ${remotePath}: ${outcome.error}`,
+        downloaded,
+        targetDir
+      };
+    }
+
+    downloaded.push({ remotePath, localPath });
+  }
+
+  return {
+    ok: true,
+    downloaded,
+    count: downloaded.length,
+    targetDir
+  };
+});
+
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {

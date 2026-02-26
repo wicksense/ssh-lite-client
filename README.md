@@ -30,6 +30,19 @@ SSH Lite Client is built for that quick-fix workflow:
    - **macOS**: `SSH Lite Client-<version>-<arch>.dmg` (or `.zip`)
 3. Run/install it for your platform.
 
+### macOS (unsigned build) install note
+
+Current macOS builds are unsigned, so Gatekeeper may block first launch with a misleading "damaged" message.
+
+Recommended path:
+1. Use the `.zip` asset.
+2. Move **SSH Lite Client.app** to `/Applications`.
+3. Run:
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/SSH Lite Client.app"
+   ```
+4. Right-click the app and choose **Open** for first launch.
+
 ## First-time use
 
 1. Enter host, port, username, and password (or load a private key).
