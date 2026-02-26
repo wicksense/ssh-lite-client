@@ -246,6 +246,11 @@ body.resizing {
   background: var(--hover);
 }
 
+#fileList li.selected {
+  background: color-mix(in oklab, var(--accent) 24%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 70%, var(--border));
+}
+
 #fileList li.dir::before {
   content: '📁 ';
 }

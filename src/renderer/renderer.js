@@ -384,6 +384,8 @@ function closeSettings() {
 
 function closeCurrentFile() {
   currentFile = '';
+  selectedRemoteFile = '';
+  clearFileSelection();
   isDirty = false;
   updateCurrentFileLabel();
   setEditorValue('');
@@ -583,6 +585,10 @@ function appendTerminalOutput(text) {
   term.write(text);
 }
 
+function clearFileSelection() {
+  fileList.querySelectorAll('li.selected').forEach((li) => li.classList.remove('selected'));
+}
+
 async function loadDir(path) {
   const res = await window.api.listDir(path);
   if (!res.ok) {
@@ -610,6 +616,9 @@ async function loadDir(path) {
 
     li.onclick = async () => {
       const fullPath = joinPath(path, entry.name);
+      clearFileSelection();
+      li.classList.add('selected');
+
       if (entry.type === 'directory') {
         await loadDir(fullPath);
         return;
