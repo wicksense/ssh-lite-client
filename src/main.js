@@ -501,6 +501,60 @@ ipcMain.handle('sftp:writeFile', async (_event, remotePath, content) => {
   });
 });
 
+ipcMain.handle('sftp:uploadTo', async (_event, remoteDir) => {
+  if (!connected || !sftp) {
+    return { ok: false, error: 'Not connected' };
+  }
+
+  const picked = await dialog.showOpenDialog({
+    title: 'Select file to upload',
+    properties: ['openFile']
+  });
+
+  if (picked.canceled || picked.filePaths.length === 0) {
+    return { ok: false, canceled: true };
+  }
+
+  const localPath = picked.filePaths[0];
+  const remotePath = path.posix.join(remoteDir || '.', path.basename(localPath));
+
+  return new Promise((resolve) => {
+    sftp.fastPut(localPath, remotePath, (err) => {
+      if (err) {
+        resolve({ ok: false, error: err.message });
+        return;
+      }
+      resolve({ ok: true, localPath, remotePath });
+    });
+  });
+});
+
+ipcMain.handle('sftp:downloadFrom', async (_event, remotePath) => {
+  if (!connected || !sftp) {
+    return { ok: false, error: 'Not connected' };
+  }
+
+  const suggested = path.basename(remotePath || 'download.txt');
+  const save = await dialog.showSaveDialog({
+    title: 'Save remote file as',
+    defaultPath: suggested
+  });
+
+  if (save.canceled || !save.filePath) {
+    return { ok: false, canceled: true };
+  }
+
+  return new Promise((resolve) => {
+    sftp.fastGet(remotePath, save.filePath, (err) => {
+      if (err) {
+        resolve({ ok: false, error: err.message });
+        return;
+      }
+      resolve({ ok: true, localPath: save.filePath, remotePath });
+    });
+  });
+});
+
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
