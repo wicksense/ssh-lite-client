@@ -56,6 +56,8 @@
         <div class="transfer-row">
           <button id="uploadBtn" class="ghost-btn">Upload</button>
           <button id="downloadBtn" class="ghost-btn">Download Selected</button>
+          <button id="renameBtn" class="ghost-btn">Rename</button>
+          <button id="deleteBtn" class="ghost-btn">Delete</button>
         </div>
         <ul id="fileList"></ul>
       </aside>
@@ -158,6 +160,37 @@
           <div class="modal-actions">
             <button id="deleteProfileCancelBtn" class="ghost-btn">Cancel</button>
             <button id="deleteProfileConfirmBtn">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="renameRemoteModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="renameRemoteTitle">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="renameRemoteTitle">Rename item</h2>
+        </div>
+        <div class="modal-body">
+          <p id="renameRemoteMessage" class="settings-note"></p>
+          <input id="renameRemoteInput" placeholder="New name" />
+          <div class="modal-actions">
+            <button id="renameRemoteCancelBtn" class="ghost-btn">Cancel</button>
+            <button id="renameRemoteConfirmBtn">Rename</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="deleteRemoteModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="deleteRemoteTitle">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 id="deleteRemoteTitle">Delete remote item(s)?</h2>
+        </div>
+        <div class="modal-body">
+          <p id="deleteRemoteMessage" class="settings-note"></p>
+          <div class="modal-actions">
+            <button id="deleteRemoteCancelBtn" class="ghost-btn">Cancel</button>
+            <button id="deleteRemoteConfirmBtn">Delete</button>
           </div>
         </div>
       </div>
