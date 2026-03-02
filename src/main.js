@@ -14,6 +14,8 @@ let pendingHostKey = null;
 const profilesFile = () => path.join(app.getPath('userData'), 'profiles.json');
 const knownHostsFile = () => path.join(app.getPath('userData'), 'known-hosts.json');
 const credentialService = 'ssh-lite-client';
+const maxEditableFileBytes = 5 * 1024 * 1024; // 5 MB safety cap for in-app text editor
+const binaryCheckBytes = 4096;
 
 function getKeytar() {
   if (keytarLib !== null) {
@@ -513,13 +515,67 @@ ipcMain.handle('sftp:readFile', async (_event, remotePath) => {
     return { ok: false, error: 'Not connected' };
   }
 
+  try {
+    const stats = await new Promise((resolve, reject) => {
+      sftp.stat(remotePath, (err, value) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(value);
+      });
+    });
+
+    if ((stats?.size || 0) > maxEditableFileBytes) {
+      const mb = (maxEditableFileBytes / (1024 * 1024)).toFixed(0);
+      return {
+        ok: false,
+        error: `File is too large to open in editor (limit ${mb} MB). Use terminal tools for large files.`
+      };
+    }
+  } catch (err) {
+    return { ok: false, error: `Unable to read remote file metadata: ${err.message}` };
+  }
+
   return new Promise((resolve) => {
     const chunks = [];
-    const stream = sftp.createReadStream(remotePath, { encoding: 'utf8' });
+    let totalBytes = 0;
+    let settled = false;
 
-    stream.on('data', (chunk) => chunks.push(chunk));
-    stream.on('error', (err) => resolve({ ok: false, error: err.message }));
-    stream.on('end', () => resolve({ ok: true, content: chunks.join('') }));
+    const finish = (payload) => {
+      if (settled) return;
+      settled = true;
+      resolve(payload);
+    };
+
+    const stream = sftp.createReadStream(remotePath);
+
+    stream.on('data', (chunk) => {
+      const part = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalBytes += part.length;
+
+      if (totalBytes > maxEditableFileBytes) {
+        stream.destroy();
+        const mb = (maxEditableFileBytes / (1024 * 1024)).toFixed(0);
+        finish({ ok: false, error: `File is too large to open in editor (limit ${mb} MB).` });
+        return;
+      }
+
+      chunks.push(part);
+    });
+
+    stream.on('error', (err) => finish({ ok: false, error: err.message }));
+
+    stream.on('end', () => {
+      const data = Buffer.concat(chunks);
+      const probe = data.subarray(0, Math.min(binaryCheckBytes, data.length));
+      if (probe.includes(0)) {
+        finish({ ok: false, error: 'This looks like a binary file and cannot be opened in the text editor.' });
+        return;
+      }
+
+      finish({ ok: true, content: data.toString('utf8') });
+    });
   });
 });
 
