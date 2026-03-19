@@ -141,6 +141,12 @@ function emitTerminalData(text) {
   }
 }
 
+function emitTransferProgress(payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('transfer:progress', payload || {});
+  }
+}
+
 function closeShellStream() {
   if (shellStream) {
     try {
@@ -608,15 +614,76 @@ ipcMain.handle('sftp:uploadTo', async (_event, remoteDir) => {
 
   const localPath = picked.filePaths[0];
   const remotePath = path.posix.join(remoteDir || '.', path.basename(localPath));
+  const opId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  let totalBytes = 0;
+  try {
+    const stats = await fs.stat(localPath);
+    totalBytes = Number(stats.size || 0);
+  } catch (_err) {
+    totalBytes = 0;
+  }
+
+  emitTransferProgress({
+    opId,
+    direction: 'upload',
+    scope: 'single',
+    phase: 'start',
+    fileName: path.basename(localPath),
+    transferredBytes: 0,
+    totalBytes,
+    overallTransferredBytes: 0,
+    overallTotalBytes: totalBytes,
+    fileIndex: 1,
+    totalFiles: 1
+  });
 
   return new Promise((resolve) => {
-    sftp.fastPut(localPath, remotePath, (err) => {
-      if (err) {
-        resolve({ ok: false, error: err.message });
-        return;
+    sftp.fastPut(
+      localPath,
+      remotePath,
+      {
+        step: (transferred, _chunk, total) => {
+          const safeTotal = Number(total || totalBytes || 0);
+          emitTransferProgress({
+            opId,
+            direction: 'upload',
+            scope: 'single',
+            phase: 'progress',
+            fileName: path.basename(localPath),
+            transferredBytes: Number(transferred || 0),
+            totalBytes: safeTotal,
+            overallTransferredBytes: Number(transferred || 0),
+            overallTotalBytes: safeTotal,
+            fileIndex: 1,
+            totalFiles: 1
+          });
+        }
+      },
+      (err) => {
+        if (err) {
+          emitTransferProgress({ opId, direction: 'upload', scope: 'single', phase: 'error', error: err.message });
+          resolve({ ok: false, error: err.message });
+          return;
+        }
+
+        emitTransferProgress({
+          opId,
+          direction: 'upload',
+          scope: 'single',
+          phase: 'done',
+          fileName: path.basename(localPath),
+          transferredBytes: totalBytes,
+          totalBytes,
+          overallTransferredBytes: totalBytes,
+          overallTotalBytes: totalBytes,
+          fileIndex: 1,
+          totalFiles: 1
+        });
+
+        resolve({ ok: true, localPath, remotePath });
       }
-      resolve({ ok: true, localPath, remotePath });
-    });
+    );
   });
 });
 
@@ -635,14 +702,83 @@ ipcMain.handle('sftp:downloadFrom', async (_event, remotePath) => {
     return { ok: false, canceled: true };
   }
 
-  return new Promise((resolve) => {
-    sftp.fastGet(remotePath, save.filePath, (err) => {
-      if (err) {
-        resolve({ ok: false, error: err.message });
-        return;
-      }
-      resolve({ ok: true, localPath: save.filePath, remotePath });
+  const opId = `download-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  let totalBytes = 0;
+  try {
+    const stats = await new Promise((resolve, reject) => {
+      sftp.stat(remotePath, (err, value) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(value);
+      });
     });
+    totalBytes = Number(stats?.size || 0);
+  } catch (_err) {
+    totalBytes = 0;
+  }
+
+  emitTransferProgress({
+    opId,
+    direction: 'download',
+    scope: 'single',
+    phase: 'start',
+    fileName: path.basename(remotePath),
+    transferredBytes: 0,
+    totalBytes,
+    overallTransferredBytes: 0,
+    overallTotalBytes: totalBytes,
+    fileIndex: 1,
+    totalFiles: 1
+  });
+
+  return new Promise((resolve) => {
+    sftp.fastGet(
+      remotePath,
+      save.filePath,
+      {
+        step: (transferred, _chunk, total) => {
+          const safeTotal = Number(total || totalBytes || 0);
+          emitTransferProgress({
+            opId,
+            direction: 'download',
+            scope: 'single',
+            phase: 'progress',
+            fileName: path.basename(remotePath),
+            transferredBytes: Number(transferred || 0),
+            totalBytes: safeTotal,
+            overallTransferredBytes: Number(transferred || 0),
+            overallTotalBytes: safeTotal,
+            fileIndex: 1,
+            totalFiles: 1
+          });
+        }
+      },
+      (err) => {
+        if (err) {
+          emitTransferProgress({ opId, direction: 'download', scope: 'single', phase: 'error', error: err.message });
+          resolve({ ok: false, error: err.message });
+          return;
+        }
+
+        emitTransferProgress({
+          opId,
+          direction: 'download',
+          scope: 'single',
+          phase: 'done',
+          fileName: path.basename(remotePath),
+          transferredBytes: totalBytes,
+          totalBytes,
+          overallTransferredBytes: totalBytes,
+          overallTotalBytes: totalBytes,
+          fileIndex: 1,
+          totalFiles: 1
+        });
+
+        resolve({ ok: true, localPath: save.filePath, remotePath });
+      }
+    );
   });
 });
 
@@ -665,6 +801,28 @@ ipcMain.handle('sftp:downloadManyFrom', async (_event, remotePaths) => {
   }
 
   const targetDir = folderPick.filePaths[0];
+  const opId = `download-many-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const fileSizes = [];
+  for (const remotePath of remotePaths) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const stats = await new Promise((resolve, reject) => {
+        sftp.stat(remotePath, (err, value) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          resolve(value);
+        });
+      });
+      fileSizes.push(Number(stats?.size || 0));
+    } catch (_err) {
+      fileSizes.push(0);
+    }
+  }
+
+  const overallTotalBytes = fileSizes.reduce((sum, value) => sum + value, 0);
 
   const uniqueLocalPath = async (baseName) => {
     const ext = path.extname(baseName);
@@ -685,23 +843,78 @@ ipcMain.handle('sftp:downloadManyFrom', async (_event, remotePaths) => {
   };
 
   const downloaded = [];
+  let completedBytes = 0;
 
-  for (const remotePath of remotePaths) {
+  emitTransferProgress({
+    opId,
+    direction: 'download',
+    scope: 'batch',
+    phase: 'start',
+    transferredBytes: 0,
+    totalBytes: fileSizes[0] || 0,
+    overallTransferredBytes: 0,
+    overallTotalBytes,
+    fileIndex: 1,
+    totalFiles: remotePaths.length,
+    fileName: path.basename(remotePaths[0] || 'file')
+  });
+
+  for (let index = 0; index < remotePaths.length; index += 1) {
+    const remotePath = remotePaths[index];
     const fileName = path.basename(remotePath || 'download.txt');
+    // eslint-disable-next-line no-await-in-loop
     const localPath = await uniqueLocalPath(fileName);
+    const fileTotal = fileSizes[index] || 0;
+
+    emitTransferProgress({
+      opId,
+      direction: 'download',
+      scope: 'batch',
+      phase: 'progress',
+      fileName,
+      transferredBytes: 0,
+      totalBytes: fileTotal,
+      overallTransferredBytes: completedBytes,
+      overallTotalBytes,
+      fileIndex: index + 1,
+      totalFiles: remotePaths.length
+    });
 
     // eslint-disable-next-line no-await-in-loop
     const outcome = await new Promise((resolve) => {
-      sftp.fastGet(remotePath, localPath, (err) => {
-        if (err) {
-          resolve({ ok: false, error: err.message });
-          return;
+      sftp.fastGet(
+        remotePath,
+        localPath,
+        {
+          step: (transferred, _chunk, total) => {
+            const safeFileTotal = Number(total || fileTotal || 0);
+            emitTransferProgress({
+              opId,
+              direction: 'download',
+              scope: 'batch',
+              phase: 'progress',
+              fileName,
+              transferredBytes: Number(transferred || 0),
+              totalBytes: safeFileTotal,
+              overallTransferredBytes: completedBytes + Number(transferred || 0),
+              overallTotalBytes,
+              fileIndex: index + 1,
+              totalFiles: remotePaths.length
+            });
+          }
+        },
+        (err) => {
+          if (err) {
+            resolve({ ok: false, error: err.message });
+            return;
+          }
+          resolve({ ok: true });
         }
-        resolve({ ok: true });
-      });
+      );
     });
 
     if (!outcome.ok) {
+      emitTransferProgress({ opId, direction: 'download', scope: 'batch', phase: 'error', error: outcome.error });
       return {
         ok: false,
         error: `Failed downloading ${remotePath}: ${outcome.error}`,
@@ -710,8 +923,20 @@ ipcMain.handle('sftp:downloadManyFrom', async (_event, remotePaths) => {
       };
     }
 
+    completedBytes += fileTotal;
     downloaded.push({ remotePath, localPath });
   }
+
+  emitTransferProgress({
+    opId,
+    direction: 'download',
+    scope: 'batch',
+    phase: 'done',
+    overallTransferredBytes: overallTotalBytes || completedBytes,
+    overallTotalBytes: overallTotalBytes || completedBytes,
+    fileIndex: remotePaths.length,
+    totalFiles: remotePaths.length
+  });
 
   return {
     ok: true,
