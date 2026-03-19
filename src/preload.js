@@ -21,6 +21,12 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('terminal:data', wrapped);
     return () => ipcRenderer.removeListener('terminal:data', wrapped);
   },
+
+  onTransferProgress: (handler) => {
+    const wrapped = (_event, payload) => handler(payload || {});
+    ipcRenderer.on('transfer:progress', wrapped);
+    return () => ipcRenderer.removeListener('transfer:progress', wrapped);
+  },
   listDir: (remotePath) => ipcRenderer.invoke('sftp:list', remotePath),
   readFile: (remotePath) => ipcRenderer.invoke('sftp:readFile', remotePath),
   writeFile: (remotePath, content) => ipcRenderer.invoke('sftp:writeFile', remotePath, content),

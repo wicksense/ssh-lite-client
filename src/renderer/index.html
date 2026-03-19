@@ -59,6 +59,14 @@
           <button id="renameBtn" class="ghost-btn">Rename</button>
           <button id="deleteBtn" class="ghost-btn">Delete</button>
         </div>
+        <div id="transferProgress" class="transfer-progress hidden" aria-live="polite">
+          <div class="transfer-progress-row">
+            <span id="transferProgressTitle">Transfer in progress...</span>
+            <span id="transferProgressPct">0%</span>
+          </div>
+          <progress id="transferProgressBar" max="100" value="0"></progress>
+          <div id="transferProgressDetail" class="transfer-progress-detail">Preparing transfer...</div>
+        </div>
         <ul id="fileList"></ul>
       </aside>
 

@@ -23,6 +23,11 @@ const downloadBtn = document.getElementById('downloadBtn');
 const renameBtn = document.getElementById('renameBtn');
 const deleteBtn = document.getElementById('deleteBtn');
 const fileList = document.getElementById('fileList');
+const transferProgressEl = document.getElementById('transferProgress');
+const transferProgressTitleEl = document.getElementById('transferProgressTitle');
+const transferProgressPctEl = document.getElementById('transferProgressPct');
+const transferProgressBarEl = document.getElementById('transferProgressBar');
+const transferProgressDetailEl = document.getElementById('transferProgressDetail');
 const editorHost = document.getElementById('editorHost');
 const saveBtn = document.getElementById('saveBtn');
 const closeFileBtn = document.getElementById('closeFileBtn');
@@ -93,6 +98,8 @@ let monacoEditor = null;
 let monacoReady = false;
 let monacoInitPromise = null;
 let suppressDirtyTracking = false;
+let activeTransferOpId = '';
+let transferHideTimer = null;
 
 function updateCurrentFileLabel() {
   if (!currentFile) {
@@ -500,6 +507,72 @@ function setupSidebarResize() {
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
   statusEl.style.color = isError ? '#dc2626' : '#667085';
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes || 0);
+  if (!Number.isFinite(value) || value <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let idx = 0;
+  let sized = value;
+  while (sized >= 1024 && idx < units.length - 1) {
+    sized /= 1024;
+    idx += 1;
+  }
+  return `${sized >= 10 || idx === 0 ? sized.toFixed(0) : sized.toFixed(1)} ${units[idx]}`;
+}
+
+function showTransferProgress(payload) {
+  if (!payload || !payload.opId) return;
+
+  const isNew = payload.phase === 'start' || activeTransferOpId !== payload.opId;
+  if (isNew) {
+    activeTransferOpId = payload.opId;
+    if (transferHideTimer) {
+      clearTimeout(transferHideTimer);
+      transferHideTimer = null;
+    }
+  }
+
+  if (activeTransferOpId !== payload.opId) {
+    return;
+  }
+
+  transferProgressEl.classList.remove('hidden');
+
+  const overallTotal = Number(payload.overallTotalBytes || 0);
+  const overallTransferred = Number(payload.overallTransferredBytes || 0);
+  const fileTotal = Number(payload.totalBytes || 0);
+  const fileTransferred = Number(payload.transferredBytes || 0);
+
+  const pct = overallTotal > 0 ? Math.min(100, Math.round((overallTransferred / overallTotal) * 100)) : payload.phase === 'done' ? 100 : 0;
+
+  transferProgressBarEl.value = pct;
+  transferProgressPctEl.textContent = `${pct}%`;
+
+  const direction = payload.direction === 'upload' ? 'Upload' : 'Download';
+  const isBatch = payload.scope === 'batch' || (payload.totalFiles || 0) > 1;
+  transferProgressTitleEl.textContent = `${direction}${isBatch ? ' batch' : ''} ${payload.phase === 'done' ? 'complete' : 'in progress'}`;
+
+  const filePosition = payload.totalFiles > 1 ? `File ${payload.fileIndex || 1}/${payload.totalFiles}` : 'Single file';
+  const fileBytesText = fileTotal > 0 ? `${formatBytes(fileTransferred)} / ${formatBytes(fileTotal)}` : `${formatBytes(fileTransferred)}`;
+  const overallBytesText = overallTotal > 0 ? `${formatBytes(overallTransferred)} / ${formatBytes(overallTotal)}` : `${formatBytes(overallTransferred)}`;
+  const fileName = payload.fileName || 'working...';
+
+  if (payload.phase === 'error') {
+    transferProgressTitleEl.textContent = `${direction} failed`;
+    transferProgressDetailEl.textContent = payload.error || 'Transfer failed';
+    return;
+  }
+
+  transferProgressDetailEl.textContent = `${filePosition} • ${fileName} • ${fileBytesText}${isBatch ? ` • Overall ${overallBytesText}` : ''}`;
+
+  if (payload.phase === 'done') {
+    transferHideTimer = setTimeout(() => {
+      transferProgressEl.classList.add('hidden');
+      activeTransferOpId = '';
+    }, 1800);
+  }
 }
 
 function parentPath(remotePath) {
@@ -1329,6 +1402,10 @@ window.api.onTerminalData((text) => {
     updateTerminalUI();
     setStatus('Shell closed. Use Start Shell to reconnect.');
   }
+});
+
+window.api.onTransferProgress((payload) => {
+  showTransferProgress(payload);
 });
 
 loadThemePreference();
